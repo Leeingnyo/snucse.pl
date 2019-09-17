@@ -45,7 +45,13 @@ let rec build e = match e with
     if ea > eb then 0. else (eval ((build f), (eval (build a, x))) +.
         (eval (build (SIGMA (INT (ea + 1), INT eb, f)), x)))
     ))
-  | INTEGRAL (a, b, f) -> VALUE (fun x -> 0.)
+  | INTEGRAL (a, b, f) -> VALUE (fun x ->
+    let ea = (eval (build a, x)) in
+    let eb = (eval (build b, x)) in
+    if ea > eb then -1. *. eval (build (INTEGRAL (b, a, f)), x)
+    else if ea = eb then 0.
+    else (eval (build f, eval (build a, x) *. 0.1) +. eval (build (INTEGRAL (ADD (a, REAL 0.1), b, f)), x))
+    )
 
 (* exp -> float *)
 let calculate e = match (build e) with
