@@ -42,7 +42,8 @@ let rec build e = match e with
   | SIGMA (a, b, f) -> (VALUE (fun x ->
     let ea = int_of_float (eval (build a, x)) in
     let eb = int_of_float (eval (build b, x)) in
-    if ea > eb then 0. else (eval ((build f), (eval (build a, x))) +. (eval ((build SIGMA(INT (ea + 1), INT eb, f)), x))
+    if ea > eb then 0. else (eval ((build f), (eval (build a, x))) +.
+        (eval (build (SIGMA (INT (ea + 1), INT eb, f)), x)))
     ))
   | INTEGRAL (a, b, f) -> VALUE (fun x -> 0.)
 
