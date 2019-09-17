@@ -33,11 +33,11 @@ let rec build e = match e with
     )
   | MUL (a, b) -> (match (build a, build b) with
     | (VALUE _a, VALUE _b) -> VALUE (fun x -> eval (build a, x) *. eval (build b, x))
-    | (_, _) -> VALUE (fun x -> eval (build a, x) *. eval (build b, x))
+    | (_, _) -> FORMULA (fun x -> eval (build a, x) *. eval (build b, x))
     )
   | DIV (a, b) -> (match (build a, build b) with
     | (VALUE _a, VALUE _b) -> VALUE (fun x -> eval (build a, x) /. eval (build b, x))
-    | (_, _) -> VALUE (fun x -> eval (build a, x) /. eval (build b, x))
+    | (_, _) -> FORMULA (fun x -> eval (build a, x) /. eval (build b, x))
     )
   | SIGMA (a, b, f) -> (VALUE (fun x ->
     let ea = int_of_float (eval (build a, x)) in
