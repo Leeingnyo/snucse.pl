@@ -50,7 +50,7 @@ let rec build e = match e with
     let eb = (eval (build b, x)) in
     if ea > eb then -1. *. eval (build (INTEGRAL (b, a, f)), x)
     else if ea = eb then 0.
-    else (eval (build f, eval (build a, x) *. 0.1) +. eval (build (INTEGRAL (ADD (a, REAL 0.1), b, f)), x))
+    else (eval (build f, ea) *. 0.1 +. eval (build (INTEGRAL (REAL (0.1 +. ea), b, f)), x))
     )
 
 (* exp -> float *)
