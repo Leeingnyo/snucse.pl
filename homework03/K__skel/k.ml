@@ -193,6 +193,14 @@ struct
       let (v, mem') = eval mem env e in
       let l = lookup_env_loc env x in
       (v, Mem.store mem' l v)
+    | VAR id ->
+      let l = lookup_env_loc env id in
+      (Mem.load mem l, mem)
+    | NUM n -> (Num n, mem)
+    | ADD (e1, e2) ->
+      let (n1, mem') = eval mem env e1 in
+      let (n2, mem'') = eval mem' env e2 in
+      (Num (value_int n1 + value_int n2), mem'')
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
 
   let run (mem, env, pgm) = 
