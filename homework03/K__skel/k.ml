@@ -197,10 +197,56 @@ struct
       let l = lookup_env_loc env id in
       (Mem.load mem l, mem)
     | NUM n -> (Num n, mem)
+    | TRUE -> (Bool true, mem)
+    | FALSE -> (Bool false, mem)
+    | UNIT -> (Unit, mem)
     | ADD (e1, e2) ->
       let (n1, mem') = eval mem env e1 in
       let (n2, mem'') = eval mem' env e2 in
       (Num (value_int n1 + value_int n2), mem'')
+    | SUB (e1, e2) ->
+      let (n1, mem') = eval mem env e1 in
+      let (n2, mem'') = eval mem' env e2 in
+      (Num (value_int n1 - value_int n2), mem'')
+    | MUL (e1, e2) ->
+      let (n1, mem') = eval mem env e1 in
+      let (n2, mem'') = eval mem' env e2 in
+      (Num (value_int n1 * value_int n2), mem'')
+    | DIV (e1, e2) ->
+      let (n1, mem') = eval mem env e1 in
+      let (n2, mem'') = eval mem' env e2 in
+      (Num (value_int n1 / value_int n2), mem'')
+    | EQUAL (e1, e2) ->
+      let (v1, mem') = eval mem env e1 in
+      let (v2, mem'') = eval mem' env e2 in
+      (Bool (v1 = v2), mem'')
+    | LESS (e1, e2) ->
+      let (n1, mem') = eval mem env e1 in
+      let (n2, mem'') = eval mem' env e2 in
+      (Bool (value_int n1 < value_int n2), mem'')
+    | NOT e ->
+      let (v, mem') = eval mem env e in
+      (Bool (not (value_bool v)), mem')
+    | SEQ (e1, e2) ->
+      let (v1, mem') = eval mem env e1 in
+      let (v2, mem'') = eval mem' env e2 in
+      (v2, mem'')
+    | IF (e, e1, e2) ->
+      let (condition, mem') = eval mem env e in
+      if value_bool condition = true then
+        let (v, mem'') = eval mem' env e1 in
+        (v, mem'')
+      else
+        let (v, mem'') = eval mem' env e2 in
+        (v, mem'')
+    | WHILE (e1, e2) ->
+      let (condition, mem') = eval mem env e1 in
+      if value_bool condition = true then
+        let (v1, mem1) = eval mem' env e2 in
+        let (v2, mem2) = eval mem1 env (WHILE (e1, e2)) in
+        (v2, mem2)
+      else
+        (Unit, mem')
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
 
   let run (mem, env, pgm) = 
