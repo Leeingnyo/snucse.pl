@@ -282,6 +282,8 @@ struct
       eval mem (Env.bind env f (Proc (x, e1, env))) e2
     | CALLV (f, e) ->
       let (id_list, exp, f_env) = lookup_env_proc env f in
+      if List.length id_list <> List.length e then raise (Error "InvalidArg")
+      else
       let rec calc_args (args, params, mem, pa_env) (* 계산할 남은 거, 메모리 현황 (이미 알록된?) *) =
         if List.length args = 0 then (mem, pa_env)
         else
@@ -296,6 +298,8 @@ struct
       (* 재귀를 위해 환경에 자기도 넣기 *)
     | CALLR (f, y) ->
       let (id_list, exp, f_env) = lookup_env_proc env f in
+      if List.length id_list <> List.length y then raise (Error "InvalidArg")
+      else
       let rec calc_args_loc args ids pa_env =
         if List.length args = 0 then pa_env
         else
