@@ -228,7 +228,29 @@ struct
     | VAR id ->
       let l = lookup_env_loc env id in
       (Mem.load mem l, mem)
-    | RECORD r -> failwith "record"
+    | RECORD fs ->
+      if List.length fs = 0 then (Unit, mem)
+      else
+        let rec calc mem fields values =
+          if List.length fields = 0 then (mem, values) else
+          let (x, e) = List.hd fields in
+          let (v, mem') = eval mem env e in
+          calc mem' (List.tl fields) (values @ [v])
+          (* 계산만 *)
+        in
+        let (mem', values) = calc mem fs [] in
+        let rec store_mem mem fields values finder =
+          if List.length fields = 0 then (finder, mem) else
+          let (x, e) = List.hd fields in
+          let value = List.hd values in
+          let (l, mem') = Mem.alloc mem in
+          store_mem (Mem.store mem' l value) (List.tl fields) (List.tl values)
+          (* 저장함 *)
+          (fun id -> if id = x then l else finder id)
+        in
+        let (finder, s_mem) = store_mem mem fs values (fun _ -> raise (Error "Unbound")) in
+        (Record finder, s_mem)
+        (* 바인딩 함수 반환 *)
     | FIELD (e, x) -> failwith "filed"
     | ADD (e1, e2) ->
       let (n1, mem') = eval mem env e1 in
