@@ -278,7 +278,8 @@ struct
         (v2, mem2)
       else
         (Unit, mem')
-    | LETF (f, x, e1, e2) -> failwith "let f"
+    | LETF (f, x, e1, e2) ->
+      eval mem (Env.bind env f (Proc (x, e1, env))) e2
     | CALLV (f, e) -> failwith "call v"
     | CALLR (f, y) -> failwith "call r"
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
