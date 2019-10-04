@@ -294,7 +294,18 @@ struct
       let (pa_mem, pa_env) = calc_args(e, id_list, mem, f_env) in
       eval (pa_mem) (Env.bind pa_env f (Proc (id_list, exp, f_env))) (exp)
       (* 재귀를 위해 환경에 자기도 넣기 *)
-    | CALLR (f, y) -> failwith "call r"
+    | CALLR (f, y) ->
+      let (id_list, exp, f_env) = lookup_env_proc env f in
+      let rec calc_args_loc args ids pa_env =
+        if List.length args = 0 then pa_env
+        else
+          let x = List.hd ids in
+          let y = List.hd args in
+          let l = lookup_env_loc env y in
+          calc_args_loc (List.tl args) (List.tl ids) (Env.bind pa_env x (Addr l))
+        (* 아규먼트 로케이션을 파라미터 이름으로 바인드하고 *) in
+      let pa_env = calc_args_loc y id_list env in
+      eval mem (Env.bind pa_env f (Proc (id_list, exp, f_env))) exp
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
 
   let run (mem, env, pgm) = 
