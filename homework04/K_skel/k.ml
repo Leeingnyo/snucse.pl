@@ -282,7 +282,11 @@ struct
     | NOT e ->
       let (v, mem') = eval mem env e in
       (Bool (not (value_bool v)), mem')
-    | ASSIGNF (e1, x, e2) -> failwith "assign field"
+    | ASSIGNF (e1, x, e2) ->
+      let (r, mem1) = eval mem env e1 in
+      let rv = value_record r in
+      let (v, mem2) = eval mem env e2 in
+      (v, Mem.store mem2 (rv x) v)
     | SEQ (e1, e2) ->
       let (v1, mem') = eval mem env e1 in
       let (v2, mem'') = eval mem' env e2 in
