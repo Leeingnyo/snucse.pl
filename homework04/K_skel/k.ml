@@ -251,7 +251,10 @@ struct
         let (finder, s_mem) = store_mem mem fs values (fun _ -> raise (Error "Unbound")) in
         (Record finder, s_mem)
         (* 바인딩 함수 반환 *)
-    | FIELD (e, x) -> failwith "filed"
+    | FIELD (e, x) ->
+      let (v, mem') = eval mem env e in
+      let r = value_record v in
+      (Mem.load mem' (r x), mem')
     | ADD (e1, e2) ->
       let (n1, mem') = eval mem env e1 in
       let (n2, mem'') = eval mem' env e2 in
