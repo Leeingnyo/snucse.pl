@@ -1,0 +1,54 @@
+let proc leaf (value) = 
+  { value := value, left := unit, right := unit }
+in
+let proc makeLtree (value, leftTree) =
+  { value := value, left := leftTree, right := unit }
+in
+let proc makeRtree (value, rightTree) =
+  { value := value, left := unit, right := rightTree }
+in
+let proc makeTree (value, leftTree, rightTree) =
+  { value := value, left := leftTree, right := rightTree }
+in
+let proc isEmpty (tree) = (tree = unit) in
+let proc rTree (tree) = tree.right in
+let proc lTree (tree) = tree.left in
+let proc noveVal (tree) = tree.value in
+let proc dft (tree) =
+  if (isEmpty (tree.left)) then unit else dft (tree.left);
+  if (isEmpty (tree.right)) then unit else dft (tree.right);
+  write tree.value
+in
+let proc bft (tree) =
+  let proc nil (x) =
+    unit
+  in
+  let proc list (hd, tl) =
+    { hd := hd, tl := tl }
+  in
+  let proc push (list, node) =
+    if (list.tl = unit) then list.tl := list (node, nil (1))
+    else (
+      let tl := list.tl in
+      push <tl, node>
+    )
+  in
+  let proc bftTemp (nodeList) =
+    if (nodeList = unit) then unit else
+    let target := nodeList.hd in
+    let leftList := nodeList.tl in
+    (
+      (if (target = unit) then unit else write target.value);
+      let left := target.left in
+      let right := target.right in (
+        (if (left = unit) then unit else leftList := push <leftList, left>);
+        (if (right = unit) then unit else leftList := push <leftList, right>);
+        bftTemp <leftList>
+      )
+    )
+  in
+  let none := nil (1) in
+  let ll := list (tree, none) in
+  bftTemp (ll)
+in
+2019
