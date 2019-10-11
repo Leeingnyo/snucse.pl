@@ -13,42 +13,51 @@ in
 let proc isEmpty (tree) = (tree = unit) in
 let proc rTree (tree) = tree.right in
 let proc lTree (tree) = tree.left in
-let proc noveVal (tree) = tree.value in
+let proc nodeVal (tree) = tree.value in
 let proc dft (tree) =
-  if (isEmpty (tree.left)) then unit else dft (tree.left);
-  if (isEmpty (tree.right)) then unit else dft (tree.right);
-  write tree.value
+  if (tree = unit) then unit else (
+    write tree.value;
+    if (isEmpty (tree.left)) then unit else dft (tree.left);
+    if (isEmpty (tree.right)) then unit else dft (tree.right)
+  )
 in
-let proc bft (tree) =
-  let proc nil (x) =
-    unit
-  in
+let proc bft (tree) = (
   let proc list (hd, tl) =
     { hd := hd, tl := tl }
   in
-  let proc push (list, node) =
-    if (list.tl = unit) then list.tl := list (node, nil (1))
-    else (
-      let tl := list.tl in
-      push <tl, node>
-    )
+  let proc push (leftList, node) =
+    if (leftList = unit) then unit else (
+    if (leftList.tl = unit) then leftList.tl := list (node, unit) else (
+    let tl := leftList.tl in
+    push <tl, node>))
   in
+    (* 
+  let proc print (list) =
+    if (list = unit) then unit else (write list.hd; let tl := list.tl in print <tl>)
+  in
+     *)
   let proc bftTemp (nodeList) =
-    if (nodeList = unit) then unit else
-    let target := nodeList.hd in
-    let leftList := nodeList.tl in
-    (
-      (if (target = unit) then unit else write target.value);
-      let left := target.left in
-      let right := target.right in (
-        (if (left = unit) then unit else leftList := push <leftList, left>);
-        (if (right = unit) then unit else leftList := push <leftList, right>);
-        bftTemp <leftList>
+    if (nodeList = unit) then unit else if (nodeList.hd = unit) then unit else (
+      let hd := nodeList.hd in
+      let tl := nodeList.tl in
+      let left := hd.left in
+      let right := hd.right in
+      (
+        write hd.value;
+        (if left = unit then unit else push <nodeList, left>);
+        (if right = unit then unit else push <nodeList, right>);
+        bftTemp (nodeList.tl)
       )
     )
   in
-  let none := nil (1) in
-  let ll := list (tree, none) in
-  bftTemp (ll)
+  bftTemp (list (tree, unit))
+  (*
+  let h1 := list(2, unit) in
+  let hello := list(1, h1) in
+  let d := 3 in (
+  push <hello, d>;
+  print <hello>)
+  *)
+)
 in
 2019
