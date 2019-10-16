@@ -274,7 +274,9 @@ struct
     | EQUAL (e1, e2) ->
       let (v1, mem') = eval mem env e1 in
       let (v2, mem'') = eval mem' env e2 in
-      (Bool (v1 = v2), mem'')
+      (try (Bool (v1 = v2), mem'')
+        with Invalid_argument exeption -> (Bool false, mem'')
+      )
     | LESS (e1, e2) ->
       let (n1, mem') = eval mem env e1 in
       let (n2, mem'') = eval mem' env e2 in
