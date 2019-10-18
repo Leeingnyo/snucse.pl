@@ -137,7 +137,8 @@ let analyze map =
         (* x 가 다른 것들이면 *)
         | _ ->
           let same_graph = List.find (fun graph -> try let _ = same_var_in_graph x graph in true with Not_found -> false) graphs in
-          List.map (fun graph -> if (graph = same_graph) then y::graph else graph) graphs
+          if (try let _ = same_var_in_graph y same_graph in true with Not_found -> false) then graphs else
+            List.map (fun graph -> if (graph = same_graph) then y::graph else graph) graphs
         )
       with Not_found ->
         (*
