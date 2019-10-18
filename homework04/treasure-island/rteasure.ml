@@ -287,7 +287,31 @@ let trim_graphs graphs =
   in
   let _ = print_endline "free variables:" in
   let _ = List.map (fun x -> print_exp x) free_variables in
-  graphs
+  let make_free graphs free_variables =
+    List.map
+    (fun graph ->
+      List.map
+      (fun e_in_g ->
+        match e_in_g with
+          | Node (e1, e2) ->
+            (match (
+              (try let _ = List.find (fun fv -> fv == e1) free_variables in true with Not_found -> false),
+              (try let _ = List.find (fun fv -> fv == e2) free_variables in true with Not_found -> false)
+            )
+            with
+              | (true, true) -> Node (VariableBar, VariableBar)
+              | (true, false) -> Node (VariableBar, e2)
+              | (false, true) -> Node (e1, VariableBar)
+              | _ -> e_in_g
+            )
+          | _ ->
+            if (try let _ = List.find (fun fv -> fv == e_in_g) free_variables in true with Not_found -> false) then VariableBar else e_in_g
+      )
+      graph
+    )
+    graphs
+  in
+  make_free graphs free_variables
 
 let _ = print_graphs (trim_graphs graphs)
 
