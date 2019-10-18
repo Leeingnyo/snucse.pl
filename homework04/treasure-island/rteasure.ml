@@ -185,13 +185,112 @@ let analyze map =
   add parent (TempVariable "parent") graphs
 
 let graphs = analyze test6
-let _ = print_endline "result:"
-let _ = List.map (fun x -> (
-    let _ = print_endline "----------------------" in
+let print_graphs graphs =
+  let _ = print_endline "--------------" in
+  let _ = print_endline "result:" in
+  let _ = List.map (fun x -> (
+    let _ = print_endline "------------" in
     List.map (fun y ->
       print_exp y
     ) x)
-  ) graphs
+  ) graphs in
+  print_endline "--------------"
+
+let _ = print_graphs graphs
+
+(*
+  StarVariable Variable 없는 것들로
+*)
+let trim_graphs graphs =
+  let has_node graph =
+    try
+    let _ = List.find
+      (fun element -> match element with
+      | Node (_, _) -> true
+      | _ -> false
+      )
+      graph in
+    true
+    with Not_found -> false
+  in
+  let has_variable graph =
+    try
+    let _ = List.find
+      (fun element -> match element with
+      | Variable _ | StarVariable -> true
+      | _ -> false
+      )
+      graph in
+    true
+    with Not_found -> false
+  in
+  let sort_grpahs graphs =
+    List.sort
+    (
+      fun graph1 -> fun graph2 ->
+      if (has_variable graph1 && has_variable graph2) then 0
+      else if (has_variable graph1) then 1
+      else if (has_variable graph2) then -1
+      else 0
+    )
+    graphs
+  in
+  let sorted_graphs = sort_grpahs graphs in
+  (*
+    그래프들 중
+    어떤 그래프가 변수도 없고 노드도 없으면
+      하나를 프리베리어블로 잡고
+      다른 그래프들을 순회해서 프리베리어블로 잡은 거 뺴고 나머지가 있는 경우
+      프리베리어블로 교체된 다른 그래프들로 만들고
+      자기는 뺌
+  *)
+  let (free_variables, graphs) =
+  List.fold_left
+  (fun (free_variables, graphs) -> fun current ->
+    if (not (has_variable current) && not (has_node current)) then
+      let fv = List.nth current 0 in
+      let nfv = List.filter (fun e -> e != fv) current in
+      (
+      fv::free_variables,
+      List.map
+      (fun graph ->
+        List.map
+        (fun e_in_g ->
+          match  e_in_g with
+            | Node (e1, e2) -> (match
+              (
+                (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e1) nfv in true with Not_found -> false),
+                (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e2) nfv in true with Not_found -> false)
+              )
+              with
+              | (true, true) -> Node (fv, fv)
+              | (true, false) -> Node (fv, e2)
+              | (false, true) -> Node (e1, fv)
+              | (false, false) -> e_in_g
+            )
+            | _ ->
+              if (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e_in_g) nfv in true with Not_found -> false) then fv else e_in_g
+        )
+        graph
+      )
+      (
+      List.filter
+      (fun graph -> graph <> current) (* <> 를 != 로 해야하나? 고민의 여지 *)
+      graphs
+      )
+      )
+    else
+    (free_variables, graphs)
+  )
+  ([], sorted_graphs)
+  sorted_graphs
+  in
+  let _ = print_endline "free variables:" in
+  let _ = List.map (fun x -> print_exp x) free_variables in
+  graphs
+
+let _ = print_graphs (trim_graphs graphs)
+
 
 (*********************************************************)
 
