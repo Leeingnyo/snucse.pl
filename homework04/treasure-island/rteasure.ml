@@ -44,16 +44,17 @@ let rec print_exp exp = (match exp with
 type graph = exp list list
 
 (*
-let test6 = Branch (Guide ("x", End (NameBox "x")), Guide ("y", End (NameBox "y")))
-let test6 = Guide ("x", End (NameBox "x"))
 let test6 = End (NameBox "x")
+let test6 = Guide ("x", End (NameBox "x"))
+let test6 = Branch (End (NameBox "x"), End StarBox) (* [Bar, Node (Bar, Bar)] *)
 let test6 = Branch (Guide ("x", End (NameBox "x")), End (NameBox "x"))
-let test6 = Branch (End (NameBox "x"), End StarBox) (* [Bar, Node (Bar, Bar)] *)
+let test6 = Branch (Guide ("x", End (NameBox "x")), Guide ("y", End (NameBox "y")))
+let test6 = Guide ("x", Branch (End (NameBox "y"), Branch (End (NameBox "x"), End StarBox)))
 let test6 = Guide ("x", Guide ("y", Branch (End (NameBox "x"), Branch (End (NameBox "y"), End (NameBox "x")))))
-let test6 = Guide ("x", Branch (End (NameBox "y"), Branch (End (NameBox "x"), End StarBox)))
+
+let test6 = Branch (End StarBox, End StarBox)
 *)
-let test6 = Branch (End (NameBox "x"), End StarBox) (* [Bar, Node (Bar, Bar)] *)
-let test6 = Guide ("x", Branch (End (NameBox "y"), Branch (End (NameBox "x"), End StarBox)))
+let test6 = End (NameBox "x")
 (*
   analyze_step
     branch
@@ -196,8 +197,6 @@ let print_graphs graphs =
     ) x)
   ) graphs in
   print_endline "--------------"
-
-let _ = print_graphs graphs
 
 (*
   StarVariable Variable 없는 것들로
