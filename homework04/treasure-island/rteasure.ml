@@ -49,8 +49,11 @@ let test6 = Guide ("x", End (NameBox "x"))
 let test6 = End (NameBox "x")
 let test6 = Branch (Guide ("x", End (NameBox "x")), End (NameBox "x"))
 let test6 = Branch (End (NameBox "x"), End StarBox) (* [Bar, Node (Bar, Bar)] *)
-*)
 let test6 = Guide ("x", Guide ("y", Branch (End (NameBox "x"), Branch (End (NameBox "y"), End (NameBox "x")))))
+let test6 = Guide ("x", Branch (End (NameBox "y"), Branch (End (NameBox "x"), End StarBox)))
+*)
+let test6 = Branch (End (NameBox "x"), End StarBox) (* [Bar, Node (Bar, Bar)] *)
+let test6 = Guide ("x", Branch (End (NameBox "y"), Branch (End (NameBox "x"), End StarBox)))
 (*
   analyze_step
     branch
@@ -87,9 +90,11 @@ let analyze map =
       try let _ = same_var_in_graph graph in true with Not_found -> false
     ) in
     *)
+    (*
     let _ = print_exp x in
     let _ = print_exp y in
     let _ = print_endline "--------" in
+    *)
     if List.length graphs = 0 then
       [x; y] :: graphs
     else (
@@ -121,7 +126,7 @@ let analyze map =
             List.map (fun graph -> if (graph = same_graph_x) then y::graph else graph) graphs
           with Not_found -> (
             match y with
-              | Node (y1, y2) -> raise Not_found
+              | Node (_, _) -> raise Not_found
               | TempVariable yv ->
             let same_graph_y = List.find (fun graph -> try let _ = same_temp_in_graph y graph in true with Not_found -> false) graphs in
             List.map (fun graph -> if (graph = same_graph_y) then x::graph else graph) graphs
