@@ -116,7 +116,9 @@ let analyze map =
         | TempVariable av -> (
           try
           let same_graph_x = List.find (fun graph -> try let _ = same_temp_in_graph x graph in true with Not_found -> false) graphs in
-          List.map (fun graph -> if (graph = same_graph_x) then y::graph else graph) graphs
+            (* x가 있으면 거기에 y 도 있는지 확인하고 없으면 추가함 *)
+          if (try let _ = same_var_in_graph y same_graph_x in true with Not_found -> false) then graphs else
+            List.map (fun graph -> if (graph = same_graph_x) then y::graph else graph) graphs
           with Not_found -> (
             match y with
               | Node (y1, y2) -> raise Not_found
