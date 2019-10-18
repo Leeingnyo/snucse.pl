@@ -246,45 +246,45 @@ let trim_graphs graphs =
       자기는 뺌
   *)
   let (free_variables, graphs) =
-  List.fold_left
-  (fun (free_variables, graphs) -> fun current ->
-    if (not (has_variable current) && not (has_node current)) then
-      let fv = List.nth current 0 in
-      let nfv = List.filter (fun e -> e != fv) current in
-      (
-      fv::free_variables,
-      List.map
-      (fun graph ->
-        List.map
-        (fun e_in_g ->
-          match  e_in_g with
-            | Node (e1, e2) -> (match
-              (
-                (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e1) nfv in true with Not_found -> false),
-                (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e2) nfv in true with Not_found -> false)
-              )
-              with
-              | (true, true) -> Node (fv, fv)
-              | (true, false) -> Node (fv, e2)
-              | (false, true) -> Node (e1, fv)
-              | (false, false) -> e_in_g
+    List.fold_left
+    (fun (free_variables, graphs) -> fun current ->
+      if (not (has_variable current) && not (has_node current)) then
+        let fv = List.nth current 0 in
+        let nfv = List.filter (fun e -> e != fv) current in
+        (
+          fv::free_variables,
+          List.map
+          (fun graph ->
+            List.map
+            (fun e_in_g ->
+              match  e_in_g with
+                | Node (e1, e2) -> (match
+                  (
+                    (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e1) nfv in true with Not_found -> false),
+                    (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e2) nfv in true with Not_found -> false)
+                  )
+                  with
+                  | (true, true) -> Node (fv, fv)
+                  | (true, false) -> Node (fv, e2)
+                  | (false, true) -> Node (e1, fv)
+                  | _ -> e_in_g
+                )
+                | _ ->
+                  if (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e_in_g) nfv in true with Not_found -> false) then fv else e_in_g
             )
-            | _ ->
-              if (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e_in_g) nfv in true with Not_found -> false) then fv else e_in_g
+            graph
+          )
+          (
+            List.filter
+            (fun graph -> graph <> current) (* <> 를 != 로 해야하나? 고민의 여지 *)
+            graphs
+          )
         )
-        graph
-      )
-      (
-      List.filter
-      (fun graph -> graph <> current) (* <> 를 != 로 해야하나? 고민의 여지 *)
-      graphs
-      )
-      )
-    else
-    (free_variables, graphs)
-  )
-  ([], sorted_graphs)
-  sorted_graphs
+      else
+      (free_variables, graphs)
+    )
+    ([], sorted_graphs)
+    sorted_graphs
   in
   let _ = print_endline "free variables:" in
   let _ = List.map (fun x -> print_exp x) free_variables in
