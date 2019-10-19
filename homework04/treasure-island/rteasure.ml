@@ -386,7 +386,40 @@ let check_impossible graphs =
   raise IMPOSSIBLE
   with Not_found -> graphs
 
-let trimmed_graphs = (check_impossible (trim_graphs graphs))
+let merge_graphs graphs =
+  List.fold_left
+  (fun result -> fun graph ->
+    try
+    let selected_graph = List.find (fun already ->
+      List.fold_left (fun result -> fun element ->
+        result ||
+        (try
+        let _ = 
+        List.find (fun ae -> ae == element) already
+        in true
+        with Not_found -> false)
+      ) false graph
+    ) result in
+    (* 그래프의 TempVariable 가 이미 result 의 그래프 중 하나에 있다면 *)
+    List.map
+    (fun rg ->
+      if (rg = selected_graph) then
+        List.fold_left
+        (fun al -> fun n ->
+          try let _ = List.find (fun x -> x = n) al in al
+          with Not_found -> n::al
+        )
+        []
+        (List.rev_append rg graph)
+      else rg
+    )
+    result
+    with Not_found -> graph::result
+  )
+  []
+  graphs
+
+let trimmed_graphs = (check_impossible (trim_graphs (merge_graphs graphs)))
 
 let resolve graphs =
   (*
@@ -503,7 +536,7 @@ let make_key formula =
   ) [] keys
 
 let getReady map =
-  make_key (resolve (check_impossible (trim_graphs (analyze map))))
+  make_key (resolve (check_impossible (trim_graphs (merge_graphs (analyze map)))))
 
 let rec key_of_string key = match key with
   | Bar -> "-"
