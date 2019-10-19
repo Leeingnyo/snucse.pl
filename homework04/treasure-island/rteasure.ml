@@ -121,7 +121,15 @@ let analyze map =
           (* y 가 temp 면 *)
           | TempVariable yv ->
             let same_graph = List.find (fun graph -> try let _ = same_temp_in_graph y graph in true with Not_found -> false) graphs in
-            List.map (fun graph -> if (graph = same_graph) then x::graph else graph) graphs
+            (* y 가 있는 그래프에 node 들이 있으면 내가 노드니까 짝지은 것을 추가해준다 *)
+            let nodes = List.filter (fun e -> match e with Node (_, _) -> true | _ -> false) same_graph in
+            let graphs' = List.fold_left (fun graphs -> fun node ->
+              match node with
+              | Node (n1, n2) -> let graphs' = add x1 n1 graphs in
+                add x2 n2 graphs'
+              | _ -> graphs
+            ) graphs nodes in
+            List.map (fun graph -> if (graph = same_graph) then x::graph else graph) graphs'
             (* 그래프 중 y와 같은 temp가 있으면 찾아서 더한다. 없으면 [x, y] 를 그래프에 추가한다 *)
           (* y 가 다른 거면 *)
           | _ ->
