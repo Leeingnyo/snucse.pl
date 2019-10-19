@@ -143,7 +143,22 @@ let analyze map =
           let same_graph_x = List.find (fun graph -> try let _ = same_temp_in_graph x graph in true with Not_found -> false) graphs in
             (* x가 있으면 거기에 y 도 있는지 확인하고 없으면 추가함 *)
           if (try let _ = same_var_in_graph y same_graph_x in true with Not_found -> false) then graphs else
-            List.map (fun graph -> if (graph = same_graph_x) then y::graph else graph) graphs
+            let graphs' =
+            (match y with
+            (* y 가 노드면 *)
+            | Node (y1, y2) ->
+              let nodes = List.filter (fun e -> match e with Node (_, _) -> true | _ -> false) same_graph_x in
+              (* 그 그래프에 있는 노드들 *)
+              List.fold_left (fun graphs -> fun node ->
+                match node with
+                | Node (n1, n2) -> let graphs' = add y1 n1 graphs in
+                  add y2 n2 graphs'
+                | _ -> graphs
+                ) graphs nodes
+            | _ -> graphs
+            ) in
+            (* 사실 옳게 한 건지 모르겠다 *)
+            List.map (fun graph -> if (graph = same_graph_x) then y::graph else graph) graphs'
           with Not_found -> (
             match y with
               | Node (_, _) -> raise Not_found
