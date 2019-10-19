@@ -322,8 +322,117 @@ let trim_graphs graphs =
   in
   make_free graphs free_variables
 
-let _ = print_graphs (trim_graphs graphs)
+let check_impossible graphs =
+  try
+  let _ = List.find (fun graph ->
+    (*
+      안되는 조건
+      cycle 이 있는가
+      * 가 있는데 NODE 가 있다
+    *)
+    let has_cycle graph =
+      let has_cycle_with target graph =
+        (match target with
+        | TempVariable _ ->
+        (try
+        let _ = List.find
+          (fun x -> match x with
+          | Node (x1, x2) -> x1 == target || x2 == target
+          | _ -> false
+          )
+        graph
+        in true
+        with Not_found -> false)
+        | _ -> false)
+      in
+      try
+      let _ = List.find (fun x -> has_cycle_with x graph) graph
+      in true
+      with Not_found -> false
+    in
+    let has_star_with_node graph =
+      let has_node graph = try let _ = List.find (fun e -> match e with Node (_, _) -> true | _ -> false) graph in true with Not_found -> false in
+      let has_star graph = try let _ = List.find (fun e -> match e with StarVariable -> true | _ -> false) graph in true with Not_found -> false in
+      has_star graph && has_node graph
+    in
+    has_cycle graph || has_star_with_node graph
+  ) graphs
+  in
+  raise IMPOSSIBLE
+  with Not_found -> graphs
 
+let _ = print_graphs (graphs)
+
+let trimmed_graphs = (check_impossible (trim_graphs graphs))
+
+let resolve graphs =
+  (*
+    그래프들 중 variable 을 갖고 있는 그래프들을 본다
+    구석구석 (노드도 포함해서)
+    temp 를 만나면 (이 temp 를 first, current 라고 하자)
+    다른 그래프들에 그 temp 가 있는지 보고
+    그 그래프가 node나 -를 갖고 있는지 찾아본다
+    node 에 또 temp 가 있으면 또 찾는다 (대신 first 와 같으면 사이클이니 IMPOSSIBLE)
+    이렇게 하나씩 해나간다
+    다른 그래프들에 그 temp 가 없으면 - 를 넣는다
+  *)
+  let has_temp_variable temp graph =
+    try let _ = List.find (fun e -> e = temp) graph in true with Not_found -> false
+  in
+  let has_var graph =
+    try let _ = List.find (fun e -> match e with Variable _ -> true | _ -> false) graph in true with Not_found -> false
+  in
+  let has_bar graph =
+    try let _ = List.find (fun e -> match e with VariableBar -> true | _ -> false) graph in true with Not_found -> false
+  in
+  let has_node graph =
+    try let _ = List.find (fun e -> match e with Node (_, _) -> true | _ -> false) graph in true with Not_found -> false
+  in
+  (*
+  let find_node_with target graph =
+    target
+  in
+  *)
+  let has_variable graph =
+    try let _ = List.find (fun e -> match e with Variable _ | StarVariable -> true | _ -> false) graph
+    in true
+    with Not_found -> false
+  in
+  let target_graphs = List.filter (fun graph -> has_variable graph) graphs in
+  List.map
+  (fun target_graph ->
+    let rec transform element = match element with
+      | Node (e1, e2) -> Node (transform e1, transform e2)
+      | TempVariable _ -> (
+        try let another_grpah = List.find (fun graph -> graph <> target_graph && (has_temp_variable element graph)) graphs in
+        (* 다른 그래프에서 temp 가 있는 그래프를 찾는다 *)
+        (* 다른 그래프에 - 가 있으면 - *)
+        if (has_bar another_grpah) then VariableBar
+        (* 변수가 있으면 변수를 *)
+        else if (has_var another_grpah) then
+          List.find (fun e -> match e with Variable _ -> true | _ -> false) another_grpah
+        (* 없고 노드가 있으면 노드를 넣고 또 돌림 *)
+        else if (has_node another_grpah) then
+          transform (List.find (fun e -> match e with Node (_, _) -> true | _ -> false) another_grpah)
+        else element
+        with Not_found -> element
+        (* 없으면 - *)
+        )
+      | _ -> element
+    in
+    List.map transform target_graph
+  )
+  target_graphs
+
+(* 무한루프 디버깅
+let _ = print_endline "-"
+let _ = print_graphs (trimmed_graphs)
+let _ = print_graphs (resolve trimmed_graphs)
+*)
+
+let getReady map =
+  let _ = resolve (check_impossible (trim_graphs (analyze map))) in
+  []
 
 (*********************************************************)
 
