@@ -7,19 +7,6 @@ type map = End of treasure
   | Guide of string * map
   | Branch of map * map
 
-(*
-getReady: map -> key list
-*)
-(*
-let getReady map = match map with
-  | End t -> (match t with
-    | StarBox -> []
-    | NameBox name -> []
-    )
-  | Guide (t, m) -> []
-  | Branch (m1, m2) -> []
-*)
-
 (*********************************************************)
 
 let _ = Random.init 0
@@ -59,6 +46,7 @@ let test6 = Branch (Guide ("z", End (NameBox "z")), Guide ("x", Guide ("y", Bran
 let test6 = Branch (Branch (Branch (Guide ("t", Guide ("o", Branch (End (NameBox "o"), End (NameBox "t")))), Guide ("h", End (NameBox "h"))), Guide ("f", End (NameBox "f"))), End (NameBox "v"))
 let test6 = Branch (Branch (Branch (Guide ("x", Guide ("y", Guide ("z", Branch (Branch (End (NameBox "x"), End (NameBox "y")), End (NameBox "z"))))), End (NameBox "a")), End (NameBox "b")), End (NameBox "c"))
 let test6 = Branch (End (NameBox "z"), Guide ("x", Branch (Guide ("y", Branch (End (NameBox "x"), End (NameBox "y"))), End StarBox)))
+let test6 = Branch (Branch (Branch (Branch (End (NameBox "a"), End (NameBox "b")), End (NameBox "c")), Branch (Branch (End (NameBox "d"), End (NameBox "e")), End (NameBox "f"))), Branch (End (NameBox "d"), End StarBox))
 
 let test6 = Branch (End StarBox, End StarBox)
 let test6 = Branch (End (NameBox "x"), End (NameBox "x"))
@@ -66,8 +54,6 @@ let test6 = Guide ("x", Branch (End (StarBox), End (NameBox "x")))
 let test6 = Branch (Guide ("x", Branch (End (NameBox "x"), End (NameBox "x"))), End (StarBox))
 let test6 = Branch (Branch (End (NameBox "q"), End (NameBox "p")), Guide ("q", Branch (End (NameBox "p"), End (NameBox "q"))))
 *)
-let test6 = End (NameBox "x")
-let test6 = Branch (Branch (Branch (Guide ("t", Guide ("o", Branch (End (NameBox "o"), End (NameBox "t")))), Guide ("h", End (NameBox "h"))), Guide ("f", End (NameBox "f"))), End (NameBox "v"))
 (*
   analyze_step
     branch
@@ -134,6 +120,16 @@ let analyze map =
             List.map (fun graph -> if (graph = same_graph) then x::graph else graph) graphs'
             (* 그래프 중 y와 같은 temp가 있으면 찾아서 더한다. 없으면 [x, y] 를 그래프에 추가한다 *)
           (* y 가 다른 거면 *)
+          | Variable _ ->
+            let same_graph = List.find (fun graph -> try let _ = same_var_in_graph y graph in true with Not_found -> false) graphs in
+            let nodes = List.filter (fun e -> match e with NodeVariable (_, _) -> true | _ -> false) same_graph in
+            let graphs' = List.fold_left (fun graphs -> fun node ->
+              match node with
+              | NodeVariable (n1, n2) -> let graphs' = add x1 n1 graphs in
+                add x2 n2 graphs'
+              | _ -> graphs
+            ) graphs nodes in
+            List.map (fun graph -> if (graph = same_graph) then x::graph else graph) graphs'
           | _ ->
             let same_graph = List.find (fun graph -> try let _ = same_var_in_graph y graph in true with Not_found -> false) graphs in
             List.map (fun graph -> if (graph = same_graph) then x::graph else graph) graphs
@@ -197,16 +193,18 @@ let analyze map =
   in
   let rec analyze_step map graphs = (match map with
     | Branch (m1, m2) ->
-      let alpha = TempVariable ("alpha" ^ (string_of_int (Random.int 10000))) in
-      let beta = TempVariable ("beta" ^ (string_of_int (Random.int 10000))) in
+      let label = (string_of_int (Random.int 100000000)) in
+      let alpha = TempVariable ("alpha" ^ label) in
+      let beta = TempVariable ("beta" ^ label) in
       let (child1, graphs') = analyze_step m1 graphs in
       let (child2, graphs'') = analyze_step m2 graphs' in
       let graphs''' = add (NodeVariable (alpha, beta)) child1 graphs'' in
       let graphs'''' = add (alpha) child2 graphs''' in
       (beta, graphs'''')
     | Guide (v, m) ->
-      let alpha = TempVariable ("alpha" ^ (string_of_int (Random.int 10000))) in
-      let beta = TempVariable ("beta" ^ (string_of_int (Random.int 10000))) in
+      let label = (string_of_int (Random.int 100000000)) in
+      let alpha = TempVariable ("alpha" ^ label) in
+      let beta = TempVariable ("beta" ^ label) in
       let (child, graphs') = (analyze_step m graphs) in
       let graphs'' = add alpha (Variable v) graphs' in
       let graphs''' = add beta child graphs'' in
@@ -222,7 +220,9 @@ let analyze map =
   let (parent, graphs) = analyze_step map [] in
   add parent (TempVariable "parent") graphs
 
+(* debugging
 let graphs = analyze test6
+*)
 let print_graphs graphs =
   let _ = print_endline "--------------" in
   let _ = print_endline "result:" in
@@ -419,7 +419,10 @@ let merge_graphs graphs =
   []
   graphs
 
+(* debugging
+let _ = print_graphs (trim_graphs (merge_graphs graphs))
 let trimmed_graphs = (check_impossible (trim_graphs (merge_graphs graphs)))
+*)
 
 let resolve graphs =
   (*
@@ -485,7 +488,10 @@ let _ = print_endline "-"
 let _ = print_graphs (trimmed_graphs)
 let _ = print_graphs (resolve trimmed_graphs)
 *)
+(* debugging
 let formula = (resolve trimmed_graphs)
+let _ = print_graphs (resolve trimmed_graphs)
+*)
 
 let make_key formula =
   (*  *)
@@ -536,7 +542,9 @@ let make_key formula =
   ) [] keys
 
 let getReady map =
+  try
   make_key (resolve (check_impossible (trim_graphs (merge_graphs (analyze map)))))
+  with Stack_overflow -> raise IMPOSSIBLE
 
 let rec key_of_string key = match key with
   | Bar -> "-"
@@ -544,7 +552,9 @@ let rec key_of_string key = match key with
 
 let keys_of_string ks = ("[" ^ (List.fold_left (fun s k -> if s = "" then (key_of_string k) else (s ^ ", " ^ (key_of_string k))) "" ks) ^ "]")
 
+(*
 let _ = try (match (getReady test6) with k -> print_endline (keys_of_string k)) with IMPOSSIBLE -> print_endline "impossible"
+*)
 
 (*********************************************************)
 
