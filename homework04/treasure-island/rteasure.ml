@@ -10,6 +10,7 @@ type map = End of treasure
 (*
 getReady: map -> key list
 *)
+(*
 let getReady map = match map with
   | End t -> (match t with
     | StarBox -> []
@@ -17,6 +18,7 @@ let getReady map = match map with
     )
   | Guide (t, m) -> []
   | Branch (m1, m2) -> []
+*)
 
 (*********************************************************)
 
@@ -384,8 +386,6 @@ let check_impossible graphs =
   raise IMPOSSIBLE
   with Not_found -> graphs
 
-let _ = print_graphs (graphs)
-
 let trimmed_graphs = (check_impossible (trim_graphs graphs))
 
 let resolve graphs =
@@ -452,13 +452,67 @@ let _ = print_endline "-"
 let _ = print_graphs (trimmed_graphs)
 let _ = print_graphs (resolve trimmed_graphs)
 *)
+let formula = (resolve trimmed_graphs)
+
+let make_key formula =
+  (*  *)
+  let keys =
+    try
+    let resolve_step_setting_first graph =
+      let first = graph in
+      let rec resolve_step graph =
+        let rec value_of e = match e with
+          | NodeVariable (x1, x2) -> value_of x1 + value_of x2 (* stack overflow 문제 가능성 *)
+          | _ -> 1
+        in
+        let has_only_one graph = List.for_all (fun e -> value_of e = 1) graph in
+        if (has_only_one graph) then Bar
+        else
+        (* 제일 복잡한 애를 고름 *)
+        let sorted = List.sort (fun a -> fun b -> value_of b - value_of a) (List.filter (fun x -> match x with Variable _ -> false | _ -> true) graph) in
+        let most = List.nth sorted 0 in
+        let rec resolve_exp exp = (match exp with
+          | NodeVariable (m1, m2) ->
+            Node (resolve_exp m1, resolve_exp m2)
+          | Variable _ ->
+            let variable_graph = List.find (fun graph -> try let _ = List.find (fun ele -> ele = exp) graph in true with Not_found -> false) formula in
+            (* exp 를 갖는 그래프를 찾음 *)
+            if (first == variable_graph) then raise IMPOSSIBLE else
+            (* 그게 first 와 같으면 raise *)
+            resolve_step variable_graph
+          | _ -> Bar
+          )
+        in
+        resolve_exp most
+      in
+      resolve_step graph
+    in
+    List.map
+    resolve_step_setting_first
+    formula
+    with Stack_overflow -> raise IMPOSSIBLE
+  in
+  (* 중복 제거 *)
+  List.fold_left
+  (fun keys -> fun target_key ->
+    try let _ = List.find (fun key -> key = target_key) keys in keys
+    with Not_found -> target_key::keys
+  ) [] keys
 
 let getReady map =
-  let _ = resolve (check_impossible (trim_graphs (analyze map))) in
-  []
+  make_key (resolve (check_impossible (trim_graphs (analyze map))))
+
+let rec key_of_string key = match key with
+  | Bar -> "-"
+  | Node (key1, key2) -> "(" ^ (key_of_string key1) ^ ", " ^ (key_of_string key2) ^ ")"
+
+let keys_of_string ks = ("[" ^ (List.fold_left (fun s k -> if s = "" then (key_of_string k) else (s ^ ", " ^ (key_of_string k))) "" ks) ^ "]")
+
+let _ = try (match (getReady test6) with k -> print_endline (keys_of_string k)) with IMPOSSIBLE -> print_endline "impossible"
 
 (*********************************************************)
 
+(*
 let test1 = End (NameBox "x") (* [Bar] *)
 let test2 = Guide ("x", End (NameBox "x")) (* [Bar] *)
 let test3 = Branch (Guide ("x", End (NameBox "x")), End StarBox) (* [Bar] *)
@@ -472,6 +526,7 @@ let rec key_of_string key = match key with
   | Node (key1, key2) -> "(" ^ (key_of_string key1) ^ ", " ^ (key_of_string key2) ^ ")"
 
 let keys_of_string ks = ("[" ^ (List.fold_left (fun s k -> if s = "" then (key_of_string k) else (s ^ ", " ^ (key_of_string k))) "" ks) ^ "]")
+*)
 
 (*
 let _ = try (match (getReady test6) with k -> print_endline (keys_of_string k)) with IMPOSSIBLE -> print_endline "impossible"
