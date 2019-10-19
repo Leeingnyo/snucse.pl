@@ -31,14 +31,14 @@ type exp = VariableBar
   | StarVariable
   | Variable of string
   | TempVariable of string
-  | Node of exp * exp
+  | NodeVariable of exp * exp
 
 let rec print_exp exp = (match exp with
   | VariableBar -> print_endline "-"
   | TempVariable x -> print_endline x
   | Variable x -> print_endline x
   | StarVariable -> print_endline "*"
-  | Node (x, y) -> let _ = print_endline "(" in let _ = print_exp x in let _ = print_exp y in print_endline ")"
+  | NodeVariable (x, y) -> let _ = print_endline "(" in let _ = print_exp x in let _ = print_exp y in print_endline ")"
 )
 
 type graph = exp list list
@@ -69,13 +69,13 @@ let test6 = Branch (Branch (Branch (Guide ("t", Guide ("o", Branch (End (NameBox
 (*
   analyze_step
     branch
-      add Node (alpha, beta), analyze_step m1
+      add NodeVariable (alpha, beta), analyze_step m1
       add TempVariable alpha, analyze_step m2
       return TempVariable beta
     guide
       add alpha, Variable string
       add beta, analyze_step m
-      return Node (alpha, beta)
+      return NodeVariable (alpha, beta)
     end
       startbox
         add StarVariable, Bar
@@ -112,9 +112,9 @@ let analyze map =
     else (
       try (match x with
         (* x 가 Node 면 *)
-        | Node (x1, x2) -> (match y with
+        | NodeVariable (x1, x2) -> (match y with
           (* y 가 Node 면 *)
-          | Node (y1, y2) ->
+          | NodeVariable (y1, y2) ->
             let graphs' = add x1 y1 graphs in
             add x2 y2 graphs'
             (* 짝지어 같은 거라 추가해준다 *)
@@ -122,10 +122,10 @@ let analyze map =
           | TempVariable yv ->
             let same_graph = List.find (fun graph -> try let _ = same_temp_in_graph y graph in true with Not_found -> false) graphs in
             (* y 가 있는 그래프에 node 들이 있으면 내가 노드니까 짝지은 것을 추가해준다 *)
-            let nodes = List.filter (fun e -> match e with Node (_, _) -> true | _ -> false) same_graph in
+            let nodes = List.filter (fun e -> match e with NodeVariable (_, _) -> true | _ -> false) same_graph in
             let graphs' = List.fold_left (fun graphs -> fun node ->
               match node with
-              | Node (n1, n2) -> let graphs' = add x1 n1 graphs in
+              | NodeVariable (n1, n2) -> let graphs' = add x1 n1 graphs in
                 add x2 n2 graphs'
               | _ -> graphs
             ) graphs nodes in
@@ -146,12 +146,12 @@ let analyze map =
             let graphs' =
             (match y with
             (* y 가 노드면 *)
-            | Node (y1, y2) ->
-              let nodes = List.filter (fun e -> match e with Node (_, _) -> true | _ -> false) same_graph_x in
+            | NodeVariable (y1, y2) ->
+              let nodes = List.filter (fun e -> match e with NodeVariable (_, _) -> true | _ -> false) same_graph_x in
               (* 그 그래프에 있는 노드들 *)
               List.fold_left (fun graphs -> fun node ->
                 match node with
-                | Node (n1, n2) -> let graphs' = add y1 n1 graphs in
+                | NodeVariable (n1, n2) -> let graphs' = add y1 n1 graphs in
                   add y2 n2 graphs'
                 | _ -> graphs
                 ) graphs nodes
@@ -161,7 +161,7 @@ let analyze map =
             List.map (fun graph -> if (graph = same_graph_x) then y::graph else graph) graphs'
           with Not_found -> (
             match y with
-              | Node (_, _) -> raise Not_found
+              | NodeVariable (_, _) -> raise Not_found
               | TempVariable yv ->
             let same_graph_y = List.find (fun graph -> try let _ = same_temp_in_graph y graph in true with Not_found -> false) graphs in
             List.map (fun graph -> if (graph = same_graph_y) then x::graph else graph) graphs
@@ -199,7 +199,7 @@ let analyze map =
       let beta = TempVariable ("beta" ^ (string_of_int (Random.int 10000))) in
       let (child1, graphs') = analyze_step m1 graphs in
       let (child2, graphs'') = analyze_step m2 graphs' in
-      let graphs''' = add (Node (alpha, beta)) child1 graphs'' in
+      let graphs''' = add (NodeVariable (alpha, beta)) child1 graphs'' in
       let graphs'''' = add (alpha) child2 graphs''' in
       (beta, graphs'''')
     | Guide (v, m) ->
@@ -208,7 +208,7 @@ let analyze map =
       let (child, graphs') = (analyze_step m graphs) in
       let graphs'' = add alpha (Variable v) graphs' in
       let graphs''' = add beta child graphs'' in
-      (Node (alpha, beta), graphs''')
+      (NodeVariable (alpha, beta), graphs''')
     | End t -> (match t with
       | StarBox ->
         let graphs' = add StarVariable VariableBar graphs in
@@ -240,7 +240,7 @@ let trim_graphs graphs =
     try
     let _ = List.find
       (fun element -> match element with
-      | Node (_, _) -> true
+      | NodeVariable (_, _) -> true
       | _ -> false
       )
       graph in
@@ -291,15 +291,15 @@ let trim_graphs graphs =
             List.map
             (fun e_in_g ->
               match  e_in_g with
-                | Node (e1, e2) -> (match
+                | NodeVariable (e1, e2) -> (match
                   (
                     (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e1) nfv in true with Not_found -> false),
                     (try let _ = List.find (fun e_in_nfv -> e_in_nfv == e2) nfv in true with Not_found -> false)
                   )
                   with
-                  | (true, true) -> Node (fv, fv)
-                  | (true, false) -> Node (fv, e2)
-                  | (false, true) -> Node (e1, fv)
+                  | (true, true) -> NodeVariable (fv, fv)
+                  | (true, false) -> NodeVariable (fv, e2)
+                  | (false, true) -> NodeVariable (e1, fv)
                   | _ -> e_in_g
                 )
                 | _ ->
@@ -325,15 +325,15 @@ let trim_graphs graphs =
       List.map
       (fun e_in_g ->
         match e_in_g with
-          | Node (e1, e2) ->
+          | NodeVariable (e1, e2) ->
             (match (
               (try let _ = List.find (fun fv -> fv == e1) free_variables in true with Not_found -> false),
               (try let _ = List.find (fun fv -> fv == e2) free_variables in true with Not_found -> false)
             )
             with
-              | (true, true) -> Node (VariableBar, VariableBar)
-              | (true, false) -> Node (VariableBar, e2)
-              | (false, true) -> Node (e1, VariableBar)
+              | (true, true) -> NodeVariable (VariableBar, VariableBar)
+              | (true, false) -> NodeVariable (VariableBar, e2)
+              | (false, true) -> NodeVariable (e1, VariableBar)
               | _ -> e_in_g
             )
           | _ ->
@@ -360,7 +360,7 @@ let check_impossible graphs =
         (try
         let _ = List.find
           (fun x -> match x with
-          | Node (x1, x2) -> x1 == target || x2 == target
+          | NodeVariable (x1, x2) -> x1 == target || x2 == target
           | _ -> false
           )
         graph
@@ -374,7 +374,7 @@ let check_impossible graphs =
       with Not_found -> false
     in
     let has_star_with_node graph =
-      let has_node graph = try let _ = List.find (fun e -> match e with Node (_, _) -> true | _ -> false) graph in true with Not_found -> false in
+      let has_node graph = try let _ = List.find (fun e -> match e with NodeVariable (_, _) -> true | _ -> false) graph in true with Not_found -> false in
       let has_star graph = try let _ = List.find (fun e -> match e with StarVariable -> true | _ -> false) graph in true with Not_found -> false in
       has_star graph && has_node graph
     in
@@ -409,7 +409,7 @@ let resolve graphs =
     try let _ = List.find (fun e -> match e with VariableBar -> true | _ -> false) graph in true with Not_found -> false
   in
   let has_node graph =
-    try let _ = List.find (fun e -> match e with Node (_, _) -> true | _ -> false) graph in true with Not_found -> false
+    try let _ = List.find (fun e -> match e with NodeVariable (_, _) -> true | _ -> false) graph in true with Not_found -> false
   in
   (*
   let find_node_with target graph =
@@ -425,7 +425,7 @@ let resolve graphs =
   List.map
   (fun target_graph ->
     let rec transform element = match element with
-      | Node (e1, e2) -> Node (transform e1, transform e2)
+      | NodeVariable (e1, e2) -> NodeVariable (transform e1, transform e2)
       | TempVariable _ -> (
         try let another_grpah = List.find (fun graph -> graph <> target_graph && (has_temp_variable element graph)) graphs in
         (* 다른 그래프에서 temp 가 있는 그래프를 찾는다 *)
@@ -436,7 +436,7 @@ let resolve graphs =
           List.find (fun e -> match e with Variable _ -> true | _ -> false) another_grpah
         (* 없고 노드가 있으면 노드를 넣고 또 돌림 *)
         else if (has_node another_grpah) then
-          transform (List.find (fun e -> match e with Node (_, _) -> true | _ -> false) another_grpah)
+          transform (List.find (fun e -> match e with NodeVariable (_, _) -> true | _ -> false) another_grpah)
         else element
         with Not_found -> element
         (* 없으면 - *)
