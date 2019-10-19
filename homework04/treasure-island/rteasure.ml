@@ -51,10 +51,21 @@ let test6 = Branch (Guide ("x", End (NameBox "x")), End (NameBox "x"))
 let test6 = Branch (Guide ("x", End (NameBox "x")), Guide ("y", End (NameBox "y")))
 let test6 = Guide ("x", Branch (End (NameBox "y"), Branch (End (NameBox "x"), End StarBox)))
 let test6 = Guide ("x", Guide ("y", Branch (End (NameBox "x"), Branch (End (NameBox "y"), End (NameBox "x")))))
+let test6 = Guide ("x", Guide ("y", Guide ("z", Branch (Branch (End (NameBox "x"), End (NameBox "y")), End (NameBox "z")))))
+let test6 = Branch (Branch (End (NameBox "p"), Branch (End (NameBox "q"), End (StarBox))), Guide ("r", End (NameBox "r")))
+let test6 = Branch (Guide ("z", End (NameBox "z")), Guide ("x", Guide ("y", Branch (End (NameBox "x"), Branch (End (NameBox "y"), End (StarBox))))))
+let test6 = Branch (Branch (Branch (Guide ("t", Guide ("o", Branch (End (NameBox "o"), End (NameBox "t")))), Guide ("h", End (NameBox "h"))), Guide ("f", End (NameBox "f"))), End (NameBox "v"))
+let test6 = Branch (Branch (Branch (Guide ("x", Guide ("y", Guide ("z", Branch (Branch (End (NameBox "x"), End (NameBox "y")), End (NameBox "z"))))), End (NameBox "a")), End (NameBox "b")), End (NameBox "c"))
+let test6 = Branch (End (NameBox "z"), Guide ("x", Branch (Guide ("y", Branch (End (NameBox "x"), End (NameBox "y"))), End StarBox)))
 
 let test6 = Branch (End StarBox, End StarBox)
+let test6 = Branch (End (NameBox "x"), End (NameBox "x"))
+let test6 = Guide ("x", Branch (End (StarBox), End (NameBox "x")))
+let test6 = Branch (Guide ("x", Branch (End (NameBox "x"), End (NameBox "x"))), End (StarBox))
+let test6 = Branch (Branch (End (NameBox "q"), End (NameBox "p")), Guide ("q", Branch (End (NameBox "p"), End (NameBox "q"))))
 *)
 let test6 = End (NameBox "x")
+let test6 = Branch (Branch (Branch (Guide ("t", Guide ("o", Branch (End (NameBox "o"), End (NameBox "t")))), Guide ("h", End (NameBox "h"))), Guide ("f", End (NameBox "f"))), End (NameBox "v"))
 (*
   analyze_step
     branch
@@ -285,8 +296,6 @@ let trim_graphs graphs =
     ([], sorted_graphs)
     sorted_graphs
   in
-  let _ = print_endline "free variables:" in
-  let _ = List.map (fun x -> print_exp x) free_variables in
   let make_free graphs free_variables =
     List.map
     (fun graph ->
