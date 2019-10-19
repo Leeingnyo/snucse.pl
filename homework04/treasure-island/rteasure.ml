@@ -465,12 +465,14 @@ let make_key formula =
           | NodeVariable (x1, x2) -> value_of x1 + value_of x2 (* stack overflow 문제 가능성 *)
           | _ -> 1
         in
+        (*
         let has_only_one graph = List.for_all (fun e -> value_of e = 1) graph in
         if (has_only_one graph) then Bar
         else
-        (* 제일 복잡한 애를 고름 *)
-        let sorted = List.sort (fun a -> fun b -> value_of b - value_of a) (List.filter (fun x -> match x with Variable _ -> false | _ -> true) graph) in
-        let most = List.nth sorted 0 in
+        *)
+        let complicates = List.filter (fun x -> value_of x <> 1) graph in
+        if List.length complicates = 0 then Bar
+        else
         let rec resolve_exp exp = (match exp with
           | NodeVariable (m1, m2) ->
             Node (resolve_exp m1, resolve_exp m2)
@@ -483,7 +485,8 @@ let make_key formula =
           | _ -> Bar
           )
         in
-        resolve_exp most
+        let transformed = List.map (fun exp -> resolve_exp exp) complicates in
+        List.fold_left (fun answer -> fun target -> if (answer = target) then answer else raise IMPOSSIBLE) (List.nth transformed 0) transformed
       in
       resolve_step graph
     in
