@@ -27,10 +27,9 @@ module Translator = struct
     | K.LETV (x, e1, e2) ->
       trans e1 @ [Sm5.MALLOC; Sm5.BIND x; Sm5.PUSH (Sm5.Id x); Sm5.STORE] @
       trans e2 @ [Sm5.UNBIND; Sm5.POP]
-    | K.LETF (f, x, e1, e2) -> (*failwith "Unimplemented LETF" *)
+    | K.LETF (f, x, e1, e2) ->
       [Sm5.PUSH (Sm5.Fn (x, trans e1)); Sm5.BIND f] @
       trans e2 @ [Sm5.UNBIND]
-    (*  *)
     | K.ASSIGN (x, e) -> trans e @ [Sm5.PUSH (Sm5.Id x); Sm5.STORE]
     | K.IF (e_cond, e_true, e_false) -> failwith "Unimplemented IF"
     | K.WHILE (e_cond, e_body) -> failwith "Unimplemented WHILE"
