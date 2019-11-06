@@ -10,7 +10,7 @@ module Translator = struct
 
   (* TODO : complete this function  *)
   let rec trans : K.program -> Sm5.command = function
-    | K.UNIT -> failwith "Unimplemented UNIT"
+    | K.UNIT -> []
     | K.NUM i -> [Sm5.PUSH (Sm5.Val (Sm5.Z i))]
     | K.TRUE -> [Sm5.PUSH (Sm5.Val (Sm5.B true))]
     | K.FALSE -> [Sm5.PUSH (Sm5.Val (Sm5.B false))]
@@ -27,13 +27,17 @@ module Translator = struct
     | K.LETV (x, e1, e2) ->
       trans e1 @ [Sm5.MALLOC; Sm5.BIND x; Sm5.PUSH (Sm5.Id x); Sm5.STORE] @
       trans e2 @ [Sm5.UNBIND; Sm5.POP]
-    | K.LETF (f, x, e1, e2) -> failwith "Unimplemented LETF"
-    | K.ASSIGN (x, e) -> failwith "Unimplemented ASSIGN"
+    | K.LETF (f, x, e1, e2) -> (*failwith "Unimplemented LETF" *)
+      [Sm5.PUSH (Sm5.Fn (x, trans e1)); Sm5.BIND f] @
+      trans e2 @ [Sm5.UNBIND]
+    (*  *)
+    | K.ASSIGN (x, e) -> trans e @ [Sm5.PUSH (Sm5.Id x); Sm5.STORE]
     | K.IF (e_cond, e_true, e_false) -> failwith "Unimplemented IF"
     | K.WHILE (e_cond, e_body) -> failwith "Unimplemented WHILE"
     | K.FOR (id, e1, e2, e_body) -> failwith "Unimplemented FOR"
     | K.SEQ (e1, e2) -> trans e1 @ trans e2
-    | K.CALLV (f, arg_exp) -> failwith "Unimplemented CALLV"
+    | K.CALLV (f, arg_exp) ->
+      [Sm5.PUSH (Sm5.Id f)] @ trans arg_exp @ [Sm5.MALLOC; Sm5.CALL]
     | K.CALLR (f, arg_var) -> failwith "Unimplemented CALLR"
     | _ -> failwith "Unimplemented"
 
