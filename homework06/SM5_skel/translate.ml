@@ -38,7 +38,8 @@ module Translator = struct
     | K.SEQ (e1, e2) -> trans e1 @ trans e2
     | K.CALLV (f, arg_exp) ->
       [Sm5.PUSH (Sm5.Id f)] @ trans arg_exp @ [Sm5.MALLOC; Sm5.CALL]
-    | K.CALLR (f, arg_var) -> failwith "Unimplemented CALLR"
+    | K.CALLR (f, arg_var) ->
+      [Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id arg_var); Sm5.LOAD; Sm5.PUSH (Sm5.Id arg_var); Sm5.CALL]
     | _ -> failwith "Unimplemented"
 
 end
