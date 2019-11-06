@@ -31,7 +31,8 @@ module Translator = struct
       [Sm5.PUSH (Sm5.Fn (x, trans e1)); Sm5.BIND f] @
       trans e2 @ [Sm5.UNBIND]
     | K.ASSIGN (x, e) -> trans e @ [Sm5.PUSH (Sm5.Id x); Sm5.STORE]
-    | K.IF (e_cond, e_true, e_false) -> failwith "Unimplemented IF"
+    | K.IF (e_cond, e_true, e_false) ->
+      trans e_cond @ [Sm5.JTR (trans e_true, trans e_false)]
     | K.WHILE (e_cond, e_body) -> failwith "Unimplemented WHILE"
     | K.FOR (id, e1, e2, e_body) -> failwith "Unimplemented FOR"
     | K.SEQ (e1, e2) -> trans e1 @ trans e2
