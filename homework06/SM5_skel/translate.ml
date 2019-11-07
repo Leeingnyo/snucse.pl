@@ -10,7 +10,7 @@ module Translator = struct
 
   (* TODO : complete this function  *)
   let rec trans : K.program -> Sm5.command = function
-    | K.UNIT -> []
+    | K.UNIT -> [Sm5.PUSH (Sm5.Val Sm5.Unit)]
     | K.NUM i -> [Sm5.PUSH (Sm5.Val (Sm5.Z i))]
     | K.TRUE -> [Sm5.PUSH (Sm5.Val (Sm5.B true))]
     | K.FALSE -> [Sm5.PUSH (Sm5.Val (Sm5.B false))]
