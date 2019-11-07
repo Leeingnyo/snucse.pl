@@ -33,7 +33,8 @@ module Translator = struct
     | K.ASSIGN (x, e) -> trans e @ [Sm5.MALLOC; Sm5.BIND "-assign"; Sm5.PUSH (Sm5.Id "-assign"); Sm5.STORE; Sm5.PUSH (Sm5.Id "-assign"); Sm5.LOAD; Sm5.PUSH (Sm5.Id "-assign"); Sm5.LOAD; Sm5.PUSH (Sm5.Id x); Sm5.STORE; Sm5.UNBIND; Sm5.POP]
     | K.IF (e_cond, e_true, e_false) ->
       trans e_cond @ [Sm5.JTR (trans e_true, trans e_false)]
-    | K.WHILE (e_cond, e_body) -> failwith "Unimplemented WHILE"
+    | K.WHILE (e_cond, e_body) -> trans (K.LETF ("-while", "-cond", K.IF (K.VAR "-cond", K.SEQ(e_body, K.CALLV ("-while", e_cond)), K.UNIT), (K.CALLV ("-while", e_cond))))
+      (* f(cond) { if (cond) body; f(cond) } f(cond)  *)
     | K.FOR (id, e1, e2, e_body) -> failwith "Unimplemented FOR"
     | K.SEQ (e1, e2) -> trans e1 @ [Sm5.POP] @ trans e2
     | K.CALLV (f, arg_exp) ->
