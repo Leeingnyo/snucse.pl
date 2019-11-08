@@ -1,3 +1,6 @@
 *.cmo
 *.cmi
 run
+parser.mli
+parser.ml
+lexer.ml
