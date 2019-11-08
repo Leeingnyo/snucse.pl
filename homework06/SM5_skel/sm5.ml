@@ -19,6 +19,8 @@ sig
     | BOX of int 
     | UNBOX of string 
     | BIND of string 
+    | TRYSTART
+    | TRYEND
     | UNBIND
     | GET 
     | PUT 
@@ -64,6 +66,8 @@ struct
     | BOX of int 
     | UNBOX of string 
     | BIND of string 
+    | TRYSTART
+    | TRYEND
     | UNBIND
     | GET 
     | PUT 
@@ -86,6 +90,9 @@ struct
   type stack = svalue list
   type memory = (loc * value) list
   type continuation = (command * environment) list
+
+  type tryscope = (command * stack * environment * continuation) list
+  (* h 번역한 것, 당시 스택, 당시 환경, 당시 컨티뉴에이션 *)
 
   exception GC_Failure
   exception Error of string
@@ -121,6 +128,8 @@ struct
     | UNBOX x -> Printf.sprintf "unbox %s" x
     | BIND x -> Printf.sprintf "bind %s" x
     | UNBIND -> "unbind"
+    | TRYSTART -> "trystart"
+    | TRYEND -> "tryend"
     | GET -> "get"
     | PUT -> "put"
     | CALL -> "call"
@@ -180,6 +189,16 @@ struct
       Printf.sprintf "Command :\n%s\nEnv :\n%s" comm_str env_str
     in
     String.concat "\n----------\n" (List.map entry_to_str k)
+
+  let tryscope_to_str t =
+    let entry_to_str (comm, s, env, k) =
+      let comm_str = command_to_str "  " comm in
+      let env_str = env_to_str "  " env in
+      let s_str = stack_to_str s in
+      let cont_str = cont_to_str k in
+      Printf.sprintf "Command :\n%sStack :\n%sEnv :\n%sContnuation :\n%s" comm_str s_str env_str cont_str
+    in
+    String.concat "\n----------\n" (List.map entry_to_str t)
 
   let lookup_env x e =
     try List.assoc x e with Not_found -> raise (Error ("Unbound name : " ^ x))
