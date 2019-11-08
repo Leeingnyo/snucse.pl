@@ -87,9 +87,10 @@ end
 module type KMINUS =
 sig
   exception Error of string
+  exception RaiseError
   type id = string
   type exp =
-  | NUM of int | TRUE | FALSE | UNIT
+  | NUM of int | TRUE | FALSE | UNIT | RAISE
   | VAR of id
   | ADD of exp * exp
   | SUB of exp * exp
@@ -107,6 +108,7 @@ sig
   | LETF of id * id * exp * exp (* procedure binding *)
   | CALLV of id * exp           (* call by value *)
   | CALLR of id * id            (* call by referenece *)
+  | TRY of exp * exp            (* try-handle *)
   | READ of id
   | WRITE of exp
     
@@ -122,11 +124,12 @@ end
 module K : KMINUS =
 struct
   exception Error of string
+  exception RaiseError
 
   type id = string
 
   type exp =
-  | NUM of int | TRUE | FALSE | UNIT
+  | NUM of int | TRUE | FALSE | UNIT | RAISE
   | VAR of id
   | ADD of exp * exp
   | SUB of exp * exp
@@ -144,6 +147,7 @@ struct
   | LETF of id * id * exp * exp (* procedure binding *)
   | CALLV of id * exp           (* call by value *)
   | CALLR of id * id            (* call by referenece *)
+  | TRY of exp * exp            (* try-handle *)
   | READ of id
   | WRITE of exp
   type program = exp
@@ -195,6 +199,7 @@ struct
     | NUM i -> (Num i, mem)
     | TRUE -> (Bool true, mem)
     | FALSE -> (Bool false, mem)
+    | RAISE -> raise RaiseError
     | VAR id -> (Mem.load mem (lookup_env_loc env id), mem)
     | ADD (e1, e2) -> 
       let v1, mem' = eval mem env e1 in
@@ -268,6 +273,8 @@ struct
     | SEQ (e1, e2) ->
       let ( _ , mem') = eval mem env e1 in
       eval mem' env e2
+    | TRY (e, h) ->
+      (try eval mem env e with RaiseError -> eval mem env h)
     | CALLV (f, arg_exp) ->
       let (arg_v, mem') = eval mem env arg_exp in
       let (arg_id, e_body, env_saved) = lookup_env_proc env f in
@@ -296,6 +303,8 @@ struct
         evalfor id (n1 + 1) n2 mem'' env e
 
   let run pgm = 
+    try
     let (v, _ ) = eval emptyMemory emptyEnv pgm in
     v
+    with RaiseError -> raise (Error "raise not handled")
 end

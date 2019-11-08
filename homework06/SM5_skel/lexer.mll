@@ -27,6 +27,9 @@
                     ("do"   , DO);
                     ("for"  , FOR);
                     ("to"   , TO);
+                    ("try"  , TRY);
+                    ("handle", HANDLE);
+                    ("raise", RAISE);
                     ("read" , READ);
                     ("write", WRITE)
                   ] 

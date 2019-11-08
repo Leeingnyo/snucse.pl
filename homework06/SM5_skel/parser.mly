@@ -19,10 +19,11 @@ let rec desugarLet: declLet * K.K.exp -> K.K.exp  =
 
 %token UNIT
 %token <int> NUM
-%token TRUE FALSE
+%token TRUE FALSE RAISE
 %token <string> ID
 %token PLUS MINUS STAR SLASH EQUAL LB RB LBLOCK RBLOCK NOT COLONEQ SEMICOLON IF THEN ELSE END
 %token WHILE DO FOR TO LET IN READ WRITE PROC
+%token TRY HANDLE
 %token LP RP
 %token EOF
 
@@ -31,6 +32,7 @@ let rec desugarLet: declLet * K.K.exp -> K.K.exp  =
 %nonassoc DO
 %nonassoc THEN
 %nonassoc ELSE
+%nonassoc HANDLE
 %right COLONEQ
 %right WRITE         
 %left EQUAL LB  
@@ -70,6 +72,8 @@ expr:
     | IF expr THEN expr ELSE expr { K.K.IF ($2, $4, $6) }
     | WHILE expr DO expr { K.K.WHILE ($2, $4) }
     | FOR ID COLONEQ expr TO expr DO expr { K.K.FOR ($2, $4, $6, $8) }
+    | RAISE { K.K.RAISE }
+    | TRY expr HANDLE expr { K.K.TRY ($2, $4) }
     | LET decl IN expr { desugarLet($2, $4) }
     | READ ID { K.K.READ ($2) }
     | WRITE expr { K.K.WRITE ($2) }
