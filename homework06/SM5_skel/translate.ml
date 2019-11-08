@@ -35,7 +35,27 @@ module Translator = struct
       trans e_cond @ [Sm5.JTR (trans e_true, trans e_false)]
     | K.WHILE (e_cond, e_body) -> trans (K.LETF ("-while", "-cond", K.IF (K.VAR "-cond", K.SEQ(e_body, K.CALLV ("-while", e_cond)), K.UNIT), (K.CALLV ("-while", e_cond))))
       (* f(cond) { if (cond) body; f(cond) } f(cond)  *)
-    | K.FOR (id, e1, e2, e_body) -> failwith "Unimplemented FOR"
+    | K.FOR (id, e1, e2, e_body) -> trans (
+        K.LETV ("-i", e1,
+        K.LETV ("-n", e2,
+        K.LETF ("-for", "-i",
+          K.IF (K.LESS (K.VAR "-n", K.VAR "-i"), K.UNIT,
+            K.SEQ (
+              K.ASSIGN (id, K.VAR "-i"),
+            K.SEQ (
+              e_body,
+              K.CALLV ("-for", K.ADD (K.VAR "-i", K.NUM 1))
+            ))
+          ),
+        K.CALLV ("-for", K.VAR "-i")
+        )))
+      )
+      (*
+        [i] := e1;
+        [n] := e2;
+        f(ii) { if ([n] < [i]) unit else { e_body; [i] = ii + 1; f(ii + 1) } }
+        f([i]);
+      *)
     | K.SEQ (e1, e2) -> trans e1 @ [Sm5.POP] @ trans e2
     | K.CALLV (f, arg_exp) ->
       [Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id f)] @
