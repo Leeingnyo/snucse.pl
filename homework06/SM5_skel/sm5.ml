@@ -223,18 +223,43 @@ struct
                  * loc 관련이면 걔도 또 검사하러 가야하고
                  * 아니면 loc 만 수집하고 여기서 마치겠습니다
                  *)
-                let value = List.find (fun e -> match e with (l, _) -> l == loc) m in
-                (match value with
-                | (_, L _loc) -> chain _loc (loc :: reachable_locs)
+                let apply_offset loc = match loc with
+                  | (base, offset) -> base
+                in
+                let same_base loc =
+                  List.map
+                  (fun e -> match e with
+                  | (l, v) -> l
+                  )
+                  (
+                  List.find_all
+                  (fun e -> match (e, loc) with
+                  | (((b_e, _), _), (base, _)) -> (base = b_e)
+                  )
+                  m
+                  )
+                in
+
+                let value =
+                  List.find
+                  (fun e -> match e with
+                  | (l, v) -> apply_offset l = apply_offset loc
+                  )
+                  m
+                in
+                (
+                let reachable_locs' = loc :: List.flatten [reachable_locs; (same_base loc)] in
+                match value with
+                | (_, L _loc) -> chain _loc reachable_locs'
                 | (_, R record) -> (
                   List.fold_left
                   (fun reachable_locs -> fun field -> match field with
                   | (_, _loc) -> chain _loc reachable_locs
                   )
-                  (loc :: reachable_locs)
+                  reachable_locs'
                   record
                 )
-                | _ -> loc :: reachable_locs
+                | _ -> reachable_locs'
                 )
               in
               chain loc reachable_locs
