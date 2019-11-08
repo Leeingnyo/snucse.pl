@@ -212,27 +212,49 @@ struct
     else
       let _ = reachable_locs :=
         let rec collect env reachable_locs =
+          (* env 를 탐색해서 수집한다 *)
           List.fold_left (fun reachable_locs -> (fun element -> match element with
+            (* 수집 탱크, 수집할 건지 확인 할 것 *)
+            (* Loc 이면 *)
             | (_, Loc loc) ->
+              (* 메모리가 loc 이면 걔도 수집해야함 *)
               let rec chain loc reachable_locs =
+                (* chain 은 뭐냐면 메모리에서 loc 가리키는 변수가 loc 관련이면 걔도 수집해야함
+                 * loc 관련이면 걔도 또 검사하러 가야하고
+                 * 아니면 loc 만 수집하고 여기서 마치겠습니다
+                 *)
                 let value = List.find (fun e -> match e with (l, _) -> l == loc) m in
                 (match value with
                 | (_, L _loc) -> chain _loc (loc :: reachable_locs)
-                | _ -> reachable_locs
+                | (_, R record) -> (
+                  List.fold_left
+                  (fun reachable_locs -> fun field -> match field with
+                  | (_, _loc) -> chain _loc reachable_locs
+                  )
+                  (loc :: reachable_locs)
+                  record
+                )
+                | _ -> loc :: reachable_locs
                 )
               in
-              chain loc (loc :: reachable_locs)
+              chain loc reachable_locs
+              (* 일단 수집하고 *)
+            (* Proc 이면 *)
             | (_, Proc proc) -> (match proc with
               | (_, _, proc_env) -> List.flatten [reachable_locs; collect proc_env []]
+              (* 함수의 env 를 탐색 *)
             )
           ))
           reachable_locs
           env
         in
-        List.fold_left (fun reachable_locs -> (fun continuation -> match continuation with
+        List.fold_left
+        (fun reachable_locs -> fun continuation -> match continuation with
+          (* 수집 탱크, 컨티뉴에이션 *)
           | (_, con_env) -> List.flatten [reachable_locs; collect con_env []]
-        ))
-        (collect e [])
+          (* 컨티뉴에이션의 인바에서 콜렉트한 것과 합친다 *)
+        )
+        (collect e []) (* 현재 환경에서 수집 *)
         k
       in
       (*
