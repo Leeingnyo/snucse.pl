@@ -337,68 +337,68 @@ struct
     | _ , _ -> false
 
   let rec step = function
-    | (s, m, e, PUSH (Val v) :: c, k) -> (V v :: s, m, e, c, k)
-    | (s, m, e, PUSH (Id x) :: c, k) ->
+    | (s, m, e, PUSH (Val v) :: c, k, t) -> (V v :: s, m, e, c, k, t)
+    | (s, m, e, PUSH (Id x) :: c, k, t) ->
       (match lookup_env x e with
-      | Loc l -> (V (L l) :: s, m, e, c, k)
-      | Proc p -> (P p :: s, m, e, c, k))
-    | (s, m, e, PUSH (Fn (x, c')) :: c, k) -> (P (x, c',e)::s, m, e, c, k)
-    | (w :: s, m, e, POP :: c , k) -> (s, m, e, c, k)
-    | (V (L l) :: V v :: s, m, e, STORE :: c, k) -> (s, store l v m, e, c, k)
-    | (V (L l) :: s, m, e, LOAD :: c, k) -> (V (load l m) :: s, m, e, c, k)
-    | (V (B b)::s, m, e, JTR (c1,c2) :: c, k) -> 
-      (s, m, e, (if b then c1 @ c else (c2 @ c)), k)
-    | (s, m, e, MALLOC :: c, k) -> 
+      | Loc l -> (V (L l) :: s, m, e, c, k, t)
+      | Proc p -> (P p :: s, m, e, c, k, t))
+    | (s, m, e, PUSH (Fn (x, c')) :: c, k, t) -> (P (x, c',e)::s, m, e, c, k, t)
+    | (w :: s, m, e, POP :: c , k, t) -> (s, m, e, c, k, t)
+    | (V (L l) :: V v :: s, m, e, STORE :: c, k, t) -> (s, store l v m, e, c, k, t)
+    | (V (L l) :: s, m, e, LOAD :: c, k, t) -> (V (load l m) :: s, m, e, c, k, t)
+    | (V (B b)::s, m, e, JTR (c1,c2) :: c, k, t) -> 
+      (s, m, e, (if b then c1 @ c else (c2 @ c)), k, t)
+    | (s, m, e, MALLOC :: c, k, t) -> 
       if !gc_mode then
         let (new_l, new_m) = malloc_with_gc s m e c k in
-        (V (L new_l) :: s, new_m, e, c, k)
+        (V (L new_l) :: s, new_m, e, c, k, t)
       else 
-        (V (L (malloc ())) :: s, m, e, c, k)
-    | (s, m, e, BOX z :: c, k) ->
+        (V (L (malloc ())) :: s, m, e, c, k, t)
+    | (s, m, e, BOX z :: c, k, t) ->
       if z <= 0 then 
         raise (Error "Box(n): non-positive n") 
       else 
-        (box_stack s z [], m, e, c, k)
-    | (V (R r) :: s, m, e, UNBOX x :: c, k) -> 
-      (V (L (lookup_record x r)) :: s, m, e, c, k)
-    | (V (L l) :: s, m, e, BIND x :: c, k) -> (s, m, (x, Loc l) :: e, c, k)
-    | (P p :: s, m, e, BIND x :: c, k) -> (s, m, (x, Proc p) :: e, c, k)
-    | (s, m, (x, ev) :: e, UNBIND :: c, k) -> (M (x, ev) :: s, m, e, c, k)
-    | (V (L l) :: V v :: P (x, c', e') :: s, m, e, CALL :: c, k) ->
-      (s, store l v m, (x, Loc l) :: e', c', (c, e) :: k)
-    | (s, m, e, [], (c, e') :: k) -> (s, m, e', c, k)
-    | (s, m, e, GET :: c, k) -> (V (Z (read_int())) :: s, m, e, c, k)
-    | (V (Z z) :: s, m, e, PUT :: c, k) -> 
+        (box_stack s z [], m, e, c, k, t)
+    | (V (R r) :: s, m, e, UNBOX x :: c, k, t) -> 
+      (V (L (lookup_record x r)) :: s, m, e, c, k, t)
+    | (V (L l) :: s, m, e, BIND x :: c, k, t) -> (s, m, (x, Loc l) :: e, c, k, t)
+    | (P p :: s, m, e, BIND x :: c, k, t) -> (s, m, (x, Proc p) :: e, c, k, t)
+    | (s, m, (x, ev) :: e, UNBIND :: c, k, t) -> (M (x, ev) :: s, m, e, c, k, t)
+    | (V (L l) :: V v :: P (x, c', e') :: s, m, e, CALL :: c, k, t) ->
+      (s, store l v m, (x, Loc l) :: e', c', (c, e) :: k, t)
+    | (s, m, e, [], (c, e') :: k, t) -> (s, m, e', c, k, t)
+    | (s, m, e, GET :: c, k, t) -> (V (Z (read_int())) :: s, m, e, c, k, t)
+    | (V (Z z) :: s, m, e, PUT :: c, k, t) -> 
       let _ = print_endline (string_of_int z) in
-      (s, m, e, c, k)
-    | (V (Z z2) :: V (Z z1) :: s, m, e, ADD :: c, k) ->
-      (V (Z (z1 + z2))::s, m, e, c, k)
-    | (V (Z z) :: V (L (base, offset)) :: s, m, e, ADD :: c, k)
-    | (V (L (base, offset)) :: V (Z z) :: s, m, e, ADD :: c, k) -> 
+      (s, m, e, c, k, t)
+    | (V (Z z2) :: V (Z z1) :: s, m, e, ADD :: c, k, t) ->
+      (V (Z (z1 + z2))::s, m, e, c, k, t)
+    | (V (Z z) :: V (L (base, offset)) :: s, m, e, ADD :: c, k, t)
+    | (V (L (base, offset)) :: V (Z z) :: s, m, e, ADD :: c, k, t) -> 
       if offset + z >= 0 then
-        (V (L (base, offset + z)) :: s, m, e, c, k) 
+        (V (L (base, offset + z)) :: s, m, e, c, k, t) 
       else 
         raise (Error "Negative loc offset spawned")
-    | (V (Z z2) :: V (Z z1) :: s, m, e, SUB :: c, k) ->
-      (V (Z (z1 - z2)) :: s, m, e, c, k)
-    | (V (Z z) :: V (L (base, offset)) :: s, m, e, SUB :: c, k) -> 
+    | (V (Z z2) :: V (Z z1) :: s, m, e, SUB :: c, k, t) ->
+      (V (Z (z1 - z2)) :: s, m, e, c, k, t)
+    | (V (Z z) :: V (L (base, offset)) :: s, m, e, SUB :: c, k, t) -> 
       if offset - z >= 0 then
-        (V (L (base, offset - z)) :: s, m, e, c, k) 
+        (V (L (base, offset - z)) :: s, m, e, c, k, t) 
       else  
         raise (Error "Negative loc offset spanwed")
-    | (V (Z z2) :: V (Z z1) :: s, m, e, MUL :: c, k) -> 
-      (V (Z (z1 * z2)) :: s, m, e, c, k)
-    | (V (Z z2) :: V (Z z1) :: s, m, e, DIV :: c, k) -> 
-      (V (Z (z1 / z2)) :: s, m, e, c, k)
-    | (V v2 :: V v1 :: s, m, e, EQ :: c, k) -> 
-      (V (B (is_equal v1 v2)) :: s, m, e, c, k)
-    | (V (Z z2) :: V (Z z1) :: s, m, e, LESS :: c, k) -> 
-      (V (B (z1 < z2)) :: s, m, e, c, k)
-    | (V (B b) :: s, m, e, NOT :: c, k) -> (V (B (not b)) :: s, m, e, c, k)
-    | s, m, e, c, k ->
+    | (V (Z z2) :: V (Z z1) :: s, m, e, MUL :: c, k, t) -> 
+      (V (Z (z1 * z2)) :: s, m, e, c, k, t)
+    | (V (Z z2) :: V (Z z1) :: s, m, e, DIV :: c, k, t) -> 
+      (V (Z (z1 / z2)) :: s, m, e, c, k, t)
+    | (V v2 :: V v1 :: s, m, e, EQ :: c, k, t) -> 
+      (V (B (is_equal v1 v2)) :: s, m, e, c, k, t)
+    | (V (Z z2) :: V (Z z1) :: s, m, e, LESS :: c, k, t) -> 
+      (V (B (z1 < z2)) :: s, m, e, c, k, t)
+    | (V (B b) :: s, m, e, NOT :: c, k, t) -> (V (B (not b)) :: s, m, e, c, k, t)
+    | s, m, e, c, k, t ->
       raise (Error "Invalid machine state")
 
-  let rec run_helper (s, m, e, c, k) = 
+  let rec run_helper (s, m, e, c, k, t) = 
     match c, k with
     | [], [] -> ()
     | _ -> 
@@ -419,10 +419,13 @@ struct
         print_newline();
         print_endline "***** Continuation *****";
         print_endline (cont_to_str k);
+        print_newline();
+        print_endline "***** Try Scope *****";
+        print_endline (tryscope_to_str t);
         print_newline())
       in
-      run_helper (step (s, m, e, c, k))
+      run_helper (step (s, m, e, c, k, t))
 
-  let run c = run_helper ([], [], [], c, []) 
+  let run c = run_helper ([], [], [], c, [], [])
 
 end
