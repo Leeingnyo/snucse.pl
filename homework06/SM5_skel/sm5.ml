@@ -19,8 +19,9 @@ sig
     | BOX of int 
     | UNBOX of string 
     | BIND of string 
-    | TRYSTART
+    | TRYSTART of command
     | TRYEND
+    | RAISE
     | UNBIND
     | GET 
     | PUT 
@@ -66,8 +67,9 @@ struct
     | BOX of int 
     | UNBOX of string 
     | BIND of string 
-    | TRYSTART
+    | TRYSTART of command
     | TRYEND
+    | RAISE
     | UNBIND
     | GET 
     | PUT 
@@ -128,8 +130,11 @@ struct
     | UNBOX x -> Printf.sprintf "unbox %s" x
     | BIND x -> Printf.sprintf "bind %s" x
     | UNBIND -> "unbind"
-    | TRYSTART -> "trystart"
+    | TRYSTART command ->
+      let comm_str = command_to_str ("  " ^ indent) command in
+      Printf.sprintf "trystart (\n%s)" comm_str
     | TRYEND -> "tryend"
+    | RAISE -> "raise"
     | GET -> "get"
     | PUT -> "put"
     | CALL -> "call"
@@ -395,6 +400,9 @@ struct
     | (V (Z z2) :: V (Z z1) :: s, m, e, LESS :: c, k, t) -> 
       (V (B (z1 < z2)) :: s, m, e, c, k, t)
     | (V (B b) :: s, m, e, NOT :: c, k, t) -> (V (B (not b)) :: s, m, e, c, k, t)
+    | (s, m, e, TRYEND :: c, k, (c', s', e', k') :: t) -> (s, m, e, c, k, t)
+    | (s, m, e, TRYSTART c' :: c, k, t) -> (s, m, e, c, k, (c', s, e, k) :: t)
+    | (s, m, e, RAISE :: c, k, (c', s', e', k') :: t) -> (s', m, e', c', k', t) (* c' ?? 뭐지 *)
     | s, m, e, c, k, t ->
       raise (Error "Invalid machine state")
 
