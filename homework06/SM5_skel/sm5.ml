@@ -210,7 +210,34 @@ struct
       let _ = loc_id := !loc_id + 1 in
       ((!loc_id, 0), m)
     else
-      let _ = reachable_locs := [] in
+      let _ = reachable_locs :=
+        let rec collect env reachable_locs =
+          List.fold_left (fun reachable_locs -> (fun element -> match element with
+            | (_, Loc loc) ->
+              let rec chain loc reachable_locs =
+                let value = List.find (fun e -> match e with (l, _) -> l == loc) m in
+                (match value with
+                | (_, L _loc) -> chain _loc (loc :: reachable_locs)
+                | _ -> reachable_locs
+                )
+              in
+              chain loc (loc :: reachable_locs)
+            | (_, Proc proc) -> (match proc with
+              | (_, _, proc_env) -> List.flatten [reachable_locs; collect proc_env []]
+            )
+          ))
+          reachable_locs
+          env
+        in
+        List.fold_left (fun reachable_locs -> (fun continuation -> match continuation with
+          | (_, con_env) -> List.flatten [reachable_locs; collect con_env []]
+        ))
+        (collect e [])
+        k
+      in
+      (*
+       * 할 것... 현재 e 에 있는 것들, e 의 함수에 있는 것들,
+       *)
       (* TODO : Add the code that marks the reachable locations.
        * let _ = ... 
        *)
