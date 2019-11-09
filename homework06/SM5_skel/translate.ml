@@ -62,6 +62,8 @@ module Translator = struct
       trans arg_exp @ [Sm5.MALLOC; Sm5.CALL]
     | K.CALLR (f, arg_var) ->
       [Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id arg_var); Sm5.LOAD; Sm5.PUSH (Sm5.Id arg_var); Sm5.CALL]
+    | K.TRY (e, h) -> [Sm5.TRYSTART (trans e, trans h)]
+    | K.RAISE -> [Sm5.RAISE]
     | _ -> failwith "Unimplemented"
 
 end

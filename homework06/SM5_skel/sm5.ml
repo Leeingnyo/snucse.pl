@@ -19,8 +19,7 @@ sig
     | BOX of int 
     | UNBOX of string 
     | BIND of string 
-    | TRYSTART of command
-    | TRYEND
+    | TRYSTART of command * command
     | RAISE
     | UNBIND
     | GET 
@@ -67,8 +66,7 @@ struct
     | BOX of int 
     | UNBOX of string 
     | BIND of string 
-    | TRYSTART of command
-    | TRYEND
+    | TRYSTART of command * command
     | RAISE
     | UNBIND
     | GET 
@@ -93,8 +91,8 @@ struct
   type memory = (loc * value) list
   type continuation = (command * environment) list
 
-  type tryscope = (command * stack * environment * continuation) list
-  (* h 번역한 것, 당시 스택, 당시 환경, 당시 컨티뉴에이션 *)
+  type tryscope = (command * command * stack * environment * continuation) list
+  (* h 번역한 것, 나머지 뒤 명령어, 당시 스택, 당시 환경, 당시 컨티뉴에이션 *)
 
   exception GC_Failure
   exception Error of string
@@ -130,10 +128,10 @@ struct
     | UNBOX x -> Printf.sprintf "unbox %s" x
     | BIND x -> Printf.sprintf "bind %s" x
     | UNBIND -> "unbind"
-    | TRYSTART command ->
-      let comm_str = command_to_str ("  " ^ indent) command in
-      Printf.sprintf "trystart (\n%s)" comm_str
-    | TRYEND -> "tryend"
+    | TRYSTART (e, h) ->
+      let try_str = command_to_str ("  " ^ indent) e in
+      let except_str = command_to_str ("  " ^ indent) h in
+      Printf.sprintf "trystart (\n%s\n%s)" try_str except_str
     | RAISE -> "raise"
     | GET -> "get"
     | PUT -> "put"
@@ -196,12 +194,13 @@ struct
     String.concat "\n----------\n" (List.map entry_to_str k)
 
   let tryscope_to_str t =
-    let entry_to_str (comm, s, env, k) =
-      let comm_str = command_to_str "  " comm in
-      let env_str = env_to_str "  " env in
+    let entry_to_str (comm, comm', s, env, k) =
+      let comm_str = command_to_str "" comm in
+      let comm'_str = command_to_str "" comm' in
+      let env_str = env_to_str "" env in
       let s_str = stack_to_str s in
       let cont_str = cont_to_str k in
-      Printf.sprintf "Command :\n%sStack :\n%sEnv :\n%sContnuation :\n%s" comm_str s_str env_str cont_str
+      Printf.sprintf "Handle Command :\n%s\nFinally Command :\n%s\nStack :\n%s\nEnv :\n%s\nContnuation :\n%s" comm_str comm'_str s_str env_str cont_str
     in
     String.concat "\n----------\n" (List.map entry_to_str t)
 
@@ -372,6 +371,7 @@ struct
     | (V (L l) :: V v :: P (x, c', e') :: s, m, e, CALL :: c, k, t) ->
       (s, store l v m, (x, Loc l) :: e', c', (c, e) :: k, t)
     | (s, m, e, [], (c, e') :: k, t) -> (s, m, e', c, k, t)
+    | (s, m, e, [], [], (c1, c2, s', e', k) :: t) -> (s, m, e, c2, k, t)
     | (s, m, e, GET :: c, k, t) -> (V (Z (read_int())) :: s, m, e, c, k, t)
     | (V (Z z) :: s, m, e, PUT :: c, k, t) -> 
       let _ = print_endline (string_of_int z) in
@@ -400,15 +400,14 @@ struct
     | (V (Z z2) :: V (Z z1) :: s, m, e, LESS :: c, k, t) -> 
       (V (B (z1 < z2)) :: s, m, e, c, k, t)
     | (V (B b) :: s, m, e, NOT :: c, k, t) -> (V (B (not b)) :: s, m, e, c, k, t)
-    | (s, m, e, TRYEND :: c, k, (c', s', e', k') :: t) -> (s, m, e, c, k, t)
-    | (s, m, e, TRYSTART c' :: c, k, t) -> (s, m, e, c, k, (c', s, e, k) :: t)
-    | (s, m, e, RAISE :: c, k, (c', s', e', k') :: t) -> (s', m, e', c', k', t) (* c' ?? 뭐지 *)
+    | (s, m, e, TRYSTART (c1, c2) :: c, k, t) -> (s, m, e, c1, [], (c2, c, s, e, k) :: t)
+    | (s, m, e, RAISE :: _, k, (c', c, s', e', k') :: t) -> (s', m, e', c' @ c, k', t)
     | s, m, e, c, k, t ->
       raise (Error "Invalid machine state")
 
   let rec run_helper (s, m, e, c, k, t) = 
-    match c, k with
-    | [], [] -> ()
+    match c, k, t with
+    | [], [], [] -> ()
     | _ -> 
       let _ = if !debug_mode then
         (print_endline "====== Machine state ======";
