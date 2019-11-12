@@ -211,6 +211,50 @@ struct
       ((!loc_id, 0), m)
     else
       let _ = reachable_locs :=
+        let rec chain loc reachable_locs =
+          (* chain 은 뭐냐면 메모리에서 loc 가리키는 변수가 loc 관련이면 걔도 수집해야함
+           * loc 관련이면 걔도 또 검사하러 가야하고
+           * 아니면 loc 만 수집하고 여기서 마치겠습니다
+           *)
+          let apply_offset loc = match loc with
+            | (base, offset) -> base
+          in
+          let same_base loc =
+            List.map
+            (fun e -> match e with
+            | (l, v) -> l
+            )
+            (
+            List.find_all
+            (fun e -> match (e, loc) with
+            | (((b_e, _), _), (base, _)) -> (base = b_e)
+            )
+            m
+            )
+          in
+
+          let value =
+            List.find
+            (fun e -> match e with
+            | (l, v) -> apply_offset l = apply_offset loc
+            )
+            m
+          in
+          (
+          let reachable_locs' = loc :: List.flatten [reachable_locs; (same_base loc)] in
+          match value with
+          | (_, L _loc) -> chain _loc reachable_locs'
+          | (_, R record) -> (
+            List.fold_left
+            (fun reachable_locs -> fun field -> match field with
+            | (_, _loc) -> chain _loc reachable_locs
+            )
+            reachable_locs'
+            record
+          )
+          | _ -> reachable_locs'
+          )
+        in
         let rec collect env reachable_locs =
           (* env 를 탐색해서 수집한다 *)
           List.fold_left (fun reachable_locs -> (fun element -> match element with
@@ -218,50 +262,6 @@ struct
             (* Loc 이면 *)
             | (_, Loc loc) ->
               (* 메모리가 loc 이면 걔도 수집해야함 *)
-              let rec chain loc reachable_locs =
-                (* chain 은 뭐냐면 메모리에서 loc 가리키는 변수가 loc 관련이면 걔도 수집해야함
-                 * loc 관련이면 걔도 또 검사하러 가야하고
-                 * 아니면 loc 만 수집하고 여기서 마치겠습니다
-                 *)
-                let apply_offset loc = match loc with
-                  | (base, offset) -> base
-                in
-                let same_base loc =
-                  List.map
-                  (fun e -> match e with
-                  | (l, v) -> l
-                  )
-                  (
-                  List.find_all
-                  (fun e -> match (e, loc) with
-                  | (((b_e, _), _), (base, _)) -> (base = b_e)
-                  )
-                  m
-                  )
-                in
-
-                let value =
-                  List.find
-                  (fun e -> match e with
-                  | (l, v) -> apply_offset l = apply_offset loc
-                  )
-                  m
-                in
-                (
-                let reachable_locs' = loc :: List.flatten [reachable_locs; (same_base loc)] in
-                match value with
-                | (_, L _loc) -> chain _loc reachable_locs'
-                | (_, R record) -> (
-                  List.fold_left
-                  (fun reachable_locs -> fun field -> match field with
-                  | (_, _loc) -> chain _loc reachable_locs
-                  )
-                  reachable_locs'
-                  record
-                )
-                | _ -> reachable_locs'
-                )
-              in
               chain loc reachable_locs
               (* 일단 수집하고 *)
             (* Proc 이면 *)
@@ -273,13 +273,39 @@ struct
           reachable_locs
           env
         in
+        let collect_stack stack reachable_locs =
+          List.fold_left (fun reachable_locs -> fun element -> (match element with
+            | V value -> (match value with
+              | L _loc -> chain _loc reachable_locs
+              | R record -> (
+                List.fold_left
+                (fun reachable_locs -> fun field -> match field with
+                | (_, _loc) -> chain _loc reachable_locs
+                )
+                reachable_locs
+                record
+              )
+              | _ -> reachable_locs
+              ) (* 위의 거랑 중복됨... *)
+            | P (_, _, env) -> collect env reachable_locs
+            | M (_, evalue) -> (match evalue with
+              | Loc loc -> chain loc reachable_locs
+              | Proc proc -> (match proc with
+                | (_, _, proc_env) -> List.flatten [reachable_locs; collect proc_env []]
+                )
+              )
+            )
+          )
+          reachable_locs
+          stack
+        in
         List.fold_left
         (fun reachable_locs -> fun continuation -> match continuation with
           (* 수집 탱크, 컨티뉴에이션 *)
           | (_, con_env) -> List.flatten [reachable_locs; collect con_env []]
           (* 컨티뉴에이션의 인바에서 콜렉트한 것과 합친다 *)
         )
-        (collect e []) (* 현재 환경에서 수집 *)
+        (collect e (collect_stack s [])) (* 현재 환경에서 수집 *)
         k
       in
       (*
