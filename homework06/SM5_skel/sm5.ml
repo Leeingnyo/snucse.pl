@@ -22,9 +22,8 @@ sig
     | UNBIND
     | GET 
     | PUT 
-    | ISTAILCALL
     | CALL 
-    | TAILCALLEND
+    | TAILCALL
     | ADD 
     | SUB 
     | MUL 
@@ -69,9 +68,8 @@ struct
     | UNBIND
     | GET 
     | PUT 
-    | ISTAILCALL
     | CALL 
-    | TAILCALLEND
+    | TAILCALL
     | ADD 
     | SUB 
     | MUL 
@@ -127,9 +125,8 @@ struct
     | UNBIND -> "unbind"
     | GET -> "get"
     | PUT -> "put"
-    | ISTAILCALL -> "istailcall"
-    | TAILCALLEND -> "tailcallend"
     | CALL -> "call"
+    | TAILCALL -> "tailcall"
     | ADD -> "add"
     | SUB -> "sub"
     | MUL -> "mul"
@@ -351,12 +348,10 @@ struct
     | (V (L l) :: s, m, e, BIND x :: c, k) -> (s, m, (x, Loc l) :: e, c, k)
     | (P p :: s, m, e, BIND x :: c, k) -> (s, m, (x, Proc p) :: e, c, k)
     | (s, m, (x, ev) :: e, UNBIND :: c, k) -> (M (x, ev) :: s, m, e, c, k)
-    | (V (L l) :: V v :: P (x, c', e') :: s, m, e, ISTAILCALL :: CALL :: UNBIND :: POP :: [], k)
-      -> (s, store l v m, (x, Loc l) :: e', c', k)
-    | (V (L l) :: V v :: P (x, c', e') :: s, m, e, ISTAILCALL :: c, k)
-      -> (V (L l) :: V v :: P (x, c', e') :: s, m, e, c, k)
     | (V (L l) :: V v :: P (x, c', e') :: s, m, e, CALL :: c, k) ->
       (s, store l v m, (x, Loc l) :: e', c', (c, e) :: k)
+    | (V (L l) :: V v :: P (x, c', e') :: s, m, e, TAILCALL :: c, k) ->
+      (s, store l v m, (x, Loc l) :: e, c' @ c, k)
     | (s, m, e, [], (c, e') :: k) -> (s, m, e', c, k)
     | (s, m, e, GET :: c, k) -> (V (Z (read_int())) :: s, m, e, c, k)
     | (V (Z z) :: s, m, e, PUT :: c, k) -> 
