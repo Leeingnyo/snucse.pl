@@ -133,8 +133,29 @@ struct
     | SUB -> (fun (v1,v2) -> Int (getInt v1 - getInt v2))
     | AND -> (fun (v1,v2) -> Bool (getBool v1 && getBool v2))
     | OR ->  (fun (v1,v2) -> Bool (getBool v1 || getBool v2))
-    | EQ -> (* TODO : implement this *)
-      failwith "Unimplemented"
+    | EQ -> (fun (v1,v2) ->
+      try (
+        match (getInt v1, getInt v2) with
+        | (a, b) -> Bool (a = b)
+        )
+      with e ->
+      try (
+        match (getBool v1, getBool v2) with
+        | (a, b) -> Bool (a = b)
+        )
+      with e ->
+      try (
+        match (getString v1, getString v2) with
+        | (a, b) -> Bool (a = b)
+        )
+      with e ->
+      try (
+        match (getLoc v1, getLoc v2) with
+        | (a, b) -> Bool (a = b)
+        )
+      with e ->
+      raise e
+      )
 
   let rec printValue =
     function 
