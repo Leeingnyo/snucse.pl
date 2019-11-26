@@ -198,6 +198,13 @@ struct
       let (v, m') = eval env mem e in
       let _ = printValue v in
       (v, m')
+    | MALLOC (e) ->
+      let (v, m') = eval env mem e in
+      let (l, m'') = malloc m' in
+      (Loc l, store m'' (l, v))
+    | ASSIGN (e1, e2) -> failwith "Unimplemented ASSIGN"
+    | BANG (e) -> failwith "Unimplemented BANG"
+    | SEQ (e1, e2) -> failwith "Unimplemented SEQ"
     | PAIR (e1, e2) -> 
       let (v1, m') = eval env mem e1 in
       let (v2, m'') = eval env m' e2 in
@@ -208,8 +215,6 @@ struct
     | SND e -> 
       let (v, m') = eval env mem e in
       (snd (getPair v), m')
-    (* TODO : complete the rest of interpreter *)
-    | _ -> failwith "Unimplemented"
 
   let emptyEnv = (fun x -> raise (RunError ("unbound id: " ^ x)))
 
