@@ -180,7 +180,7 @@ struct
       | RecFun (f, x, e) ->  (* TODO : implement this *)
         failwith "Unimplemented")
     | LET (d, e) ->
-      let (id, (v, mem')) = (match d with 
+      let (id, (v, mem')) = (match d with
       | VAL (x, e) -> (x, eval env mem e)
       ) in
       eval (env @+ (id, v)) mem' e
@@ -202,9 +202,17 @@ struct
       let (v, m') = eval env mem e in
       let (l, m'') = malloc m' in
       (Loc l, store m'' (l, v))
-    | ASSIGN (e1, e2) -> failwith "Unimplemented ASSIGN"
-    | BANG (e) -> failwith "Unimplemented BANG"
-    | SEQ (e1, e2) -> failwith "Unimplemented SEQ"
+    | ASSIGN (e1, e2) ->
+      let (l, m') = eval env mem e1 in
+      let (v, m'') = eval env m' e2 in
+      (v, store m'' (getLoc l, v))
+    | BANG (e) ->
+      let (l, m') = eval env mem e in
+      let v = load m' (getLoc l) in
+      (v, m')
+    | SEQ (e1, e2) ->
+      let (v1, m') = eval env mem e1 in
+      eval env m' e2
     | PAIR (e1, e2) -> 
       let (v1, m') = eval env mem e1 in
       let (v2, m'') = eval env m' e2 in
