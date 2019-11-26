@@ -179,6 +179,11 @@ struct
       | Fun (x, e) -> eval (env' @+ (x, v2)) m'' e
       | RecFun (f, x, e) ->  (* TODO : implement this *)
         failwith "Unimplemented")
+    | LET (d, e) ->
+      let (id, (v, mem')) = (match d with 
+      | VAL (x, e) -> (x, eval env mem e)
+      ) in
+      eval (env @+ (id, v)) mem' e
     | IF (e1, e2, e3) ->
       let (v1, m') = eval env mem e1 in
       eval env m' (if getBool v1 then e2 else e3)
