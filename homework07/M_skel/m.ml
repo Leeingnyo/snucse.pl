@@ -177,11 +177,13 @@ struct
       let (c, env') = getClosure v1 in
       (match c with 
       | Fun (x, e) -> eval (env' @+ (x, v2)) m'' e
-      | RecFun (f, x, e) ->  (* TODO : implement this *)
-        failwith "Unimplemented")
+      | RecFun (f, x, e) -> eval ((env' @+ (x, v2)) @+ (f, v1)) m'' e
+      )
     | LET (d, e) ->
       let (id, (v, mem')) = (match d with
       | VAL (x, e) -> (x, eval env mem e)
+      | REC (f, x, e) ->
+        (f, (Closure (RecFun (f, x, e), env), mem))
       ) in
       eval (env @+ (id, v)) mem' e
     | IF (e1, e2, e3) ->
