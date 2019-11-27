@@ -81,7 +81,7 @@ let rec v (gamma, e, t) = (match e with
       let par_t = new_var () in
       let body_t = new_var () in
       let f_t = TFun (TVar par_t, TVar body_t) in
-      v ((f, f_t) :: gamma, M.FN (x, e), f_t)
+      And (v ((f, f_t) :: gamma, M.FN (x, e), f_t), v ((f, f_t) :: gamma, next, t))
     | M.VAL (x, e) ->
       let a = new_var () in
       And (v ((x, TVar a) :: gamma, next, t), v (gamma, e, TVar a))
@@ -172,6 +172,7 @@ let rec unify u s = match u with
       else unify (substitute (TVar a, b) left) ((TVar a, b) :: s) (* 이 변수는 저장하고 다른 식에서 이 변수를 쓰고 있으면 바꿔줍니다 *)
     | (TPair (a1, a2), TPair (b1, b2)) (* 페어 같은 짝짝이면 짝짝끼리 해줍니다 *)
     | (TFun (a1, a2), TFun (b1, b2)) -> unify (EqualFormula (a1, b1) :: EqualFormula (a2, b2) :: left) s
+    | (TLoc a, TLoc b) -> unify (EqualFormula (a, b) :: left) s
     | _ -> raise (M.TypeError "anything else fail")
     )
 
@@ -191,6 +192,7 @@ let rec calculate t s =
 let check : M.exp -> M.types = fun exp ->
   let tau = "tau" in
   let formula = v ([], exp, TVar tau) in
+  (* let _ = print_endline (string_of_formula formula) in *)
   let equals = list_of_formula formula [] in
   let s = unify equals [] in
   translate_to_m_types (calculate (TVar tau) s)
