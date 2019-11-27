@@ -42,12 +42,6 @@ let rec string_of_typ t = match t with
   | TFun (a, b) -> "fun (" ^ string_of_typ a ^ ") -> (" ^ string_of_typ b ^ ")"
   | TVar id -> "var[" ^ id ^ "]"
 
-let rec length_of_typ t = match t with
-  | TInt | TBool | TString | TVar _ -> 1
-  | TPair (f, s) -> 1 + length_of_typ f + length_of_typ s
-  | TLoc a -> 1 + length_of_typ a
-  | TFun (a, b) -> 1 + length_of_typ a + length_of_typ b
-
 type formula =
   | Equal of typ * typ
   | And of formula * formula
@@ -136,10 +130,7 @@ let string_of_equal_formula_list equals =
 
 let rec list_of_formula formula rr = match formula with
   | And (f1, f2) -> list_of_formula f1 [] @ list_of_formula f2 [] @ rr
-  | Equal (a, b) -> (
-    let (small, big) = if length_of_typ a < length_of_typ b then
-      (a, b) else (b, a) in
-    EqualFormula (small, big)) :: rr
+  | Equal (a, b) -> EqualFormula (a, b) :: rr
 
 let rec is_subtype var t = match t with
   | TInt | TBool | TString | TVar _ -> false
