@@ -53,7 +53,11 @@ let rec v (gamma, e, t) = (match e with
     let a = new_var () in
     And (v (gamma, fn, TFun (TVar a, t)), v (gamma, arg, TVar a))
   | M.LET (dec, next) -> (match dec with
-    | M.REC (f, par, body) -> failwith "Unimplemented LET REC"
+    | M.REC (f, x, e) ->
+      let par_t = new_var () in
+      let body_t = new_var () in
+      let f_t = TFun (TVar par_t, TVar body_t) in
+      v ((f, f_t) :: gamma, M.FN (x, e), f_t)
     | M.VAL (x, e) ->
       let a = new_var () in
       And (v ((x, TVar a) :: gamma, next, t), v (gamma, e, TVar a))
@@ -72,13 +76,29 @@ let rec v (gamma, e, t) = (match e with
     )
   | M.READ -> Equal (t, TInt)
   | M.WRITE e -> v (gamma, e, t)
-  | M.MALLOC e -> failwith "Unimplemented MALLOC"
-  | M.ASSIGN (dest, expr) -> failwith "Unimplemented MALLOC"
-  | M.BANG loc -> failwith "Unimplemented MALLOC"
-  | M.SEQ (e1, e2) -> failwith "Unimplemented MALLOC"
-  | M.PAIR (fst, snd) -> failwith "Unimplemented MALLOC"
-  | M.FST pair -> failwith "Unimplemented MALLOC"
-  | M.SND pair -> failwith "Unimplemented MALLOC"
+  | M.MALLOC e ->
+    let a = new_var () in
+    And (v (gamma, e, TVar a), Equal (t, TLoc (TVar a)))
+  | M.ASSIGN (dest, expr) ->
+    And (v (gamma, dest, TLoc t), v (gamma, expr, t))
+  | M.BANG loc ->
+    let a = new_var () in
+    And (v (gamma, loc, TLoc (TVar a)), Equal (t, TVar a))
+  | M.SEQ (e1, e2) ->
+    let a1 = new_var () in
+    let a2 = new_var () in
+    And (And (v (gamma, e1, TVar a1), v (gamma, e2, TVar a2)), Equal (TVar a2, t))
+  | M.PAIR (fst, snd) ->
+    let a1 = new_var () in
+    let a2 = new_var () in
+    And (Equal (t, TPair (TVar a1, TVar a2)),
+    And (v (gamma, fst, TVar a1), v (gamma, snd, TVar a2)))
+  | M.FST pair ->
+    let a = new_var () in
+    v (gamma, pair, TPair (t, TVar a))
+  | M.SND pair ->
+    let a = new_var () in
+    v (gamma, pair, TPair (TVar a, t))
   )
 
 let rec string_of_typ t = match t with
