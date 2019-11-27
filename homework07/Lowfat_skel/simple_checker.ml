@@ -24,13 +24,37 @@ type typ =
   | TVar of var
   (* Modify, or add more if needed *)
 
+let rec translate_to_m_types t = match t with
+  | TInt -> M.TyInt
+  | TBool -> M.TyBool
+  | TString -> M.TyString
+  | TVar id -> raise (M.TypeError "no var to translate")
+  | TPair (f, s) -> M.TyPair (translate_to_m_types f, translate_to_m_types s)
+  | TLoc a -> M.TyLoc (translate_to_m_types a)
+  | TFun (a, b) -> M.TyArrow (translate_to_m_types a, translate_to_m_types b)
+
+let rec string_of_typ t = match t with
+  | TInt -> "int"
+  | TBool -> "bool"
+  | TString -> "string"
+  | TPair (f, s) -> "pair(" ^ string_of_typ f ^ ", " ^ string_of_typ s ^ ")"
+  | TLoc l -> "loc(" ^ string_of_typ l ^ ")"
+  | TFun (a, b) -> "fun (" ^ string_of_typ a ^ ") -> (" ^ string_of_typ b ^ ")"
+  | TVar id -> "var[" ^ id ^ "]"
+
+let rec length_of_typ t = match t with
+  | TInt | TBool | TString | TVar _ -> 1
+  | TPair (f, s) -> 1 + length_of_typ f + length_of_typ s
+  | TLoc a -> 1 + length_of_typ a
+  | TFun (a, b) -> 1 + length_of_typ a + length_of_typ b
+
 type formula =
   | Equal of typ * typ
   | And of formula * formula
 
-let rec is_valid f = match f with
-  | Equal (a, b) -> a = b
-  | And (f1, f2) -> is_valid f1 && is_valid f2
+let rec string_of_formula formula = match formula with
+  | Equal (a, b) -> string_of_typ a ^ " = " ^ string_of_typ b
+  | And (a, b) -> string_of_formula a ^ " ^ " ^ string_of_formula b
 
 let rec v (gamma, e, t) = (match e with
   | M.CONST value -> (match value with
@@ -101,22 +125,32 @@ let rec v (gamma, e, t) = (match e with
     v (gamma, pair, TPair (TVar a, t))
   )
 
-let rec string_of_typ t = match t with
-  | TInt -> "int"
-  | TBool -> "bool"
-  | TString -> "string"
-  | TPair (f, s) -> "pair(" ^ string_of_typ f ^ ", " ^ string_of_typ s ^ ")"
-  | TLoc l -> "loc(" ^ string_of_typ l ^ ")"
-  | TFun (a, b) -> "fun (" ^ string_of_typ a ^ ") -> (" ^ string_of_typ b ^ ")"
-  | TVar id -> "var[" ^ id ^ "]"
-let rec string_of_formula formula = match formula with
-  | Equal (a, b) -> string_of_typ a ^ " = " ^ string_of_typ b
-  | And (a, b) -> string_of_formula a ^ " ^ " ^ string_of_formula b
+type equal_formula = EqualFormula of typ * typ
+
+let rec list_of_formula formula rr = match formula with
+  | And (f1, f2) -> list_of_formula f1 [] @ list_of_formula f2 [] @ rr
+  | Equal (a, b) -> (
+    let (small, big) = if length_of_typ a < length_of_typ b then
+      (a, b) else (b, a) in
+    EqualFormula (small, big)) :: rr
+ 
+let rec unify_all u s = match u with
+  | [] -> s
+  | EqualFormula (a, b) :: left -> if a = b then unify_all left s
+    else (match (a, b) with
+    | (TFun (a1, a2), TFun (b1, b2)) -> unify_all (EqualFormula (a1, b1) :: EqualFormula (a2, b2) :: left) s
+    | (TVar a, b) | (b, TVar a) -> unify_all left ((a, b) :: s) (* TODO substitution *)
+    | _ -> raise (M.TypeError "anything else fail")
+    )
 
 (* TODO : Implement this function *)
 let check : M.exp -> M.types = fun exp ->
   let tau = "tau" in
   let formula = v ([], exp, TVar tau) in
+  let equals = list_of_formula formula [] in
   let _ = print_endline (string_of_formula formula) in
-  M.TyInt
-  (* raise (M.TypeError "Type Checker Unimplemented") *)
+  (*
+  let hello = unify_all equals [] in
+  (fun (a, b) -> translate_to_m_types b) (List.find (fun (a, b) -> a = "tau") hello)
+  *)
+  raise (M.TypeError "Type Checker Unimplemented")
