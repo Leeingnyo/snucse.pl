@@ -15,10 +15,9 @@ let rec trans_obj : Sm5.obj -> Sonata.obj = function
   | Sm5.Val v -> Sonata.Val (trans_v v)
   | Sm5.Id id -> Sonata.Id id
   | Sm5.Fn (arg, command) -> Sonata.Fn (arg,
-    (* left :: stack, { ... env, !loc: l, !val: new-l, !func: f }  *)
-    [Sonata.BIND "@my-left-work"] @
-    (* stack, { ... env, !loc: l, !val: new-l, !func: f, left: left }  *)
-    trans' (command @ [Sm5.PUSH (Sm5.Id "@my-left-work"); Sm5.UNBIND; Sm5.POP; Sm5.PUSH (Sm5.Val Sm5.Unit); Sm5.MALLOC; Sm5.CALL]))
+    (* left :: stack, { ... env }  *)
+    (* stack, { ... env, left: left }  *)
+    trans' ([Sm5.BIND "@my-left-work"] @ command @ [Sm5.PUSH (Sm5.Id "@my-left-work"); Sm5.PUSH (Sm5.Val Sm5.Unit); Sm5.MALLOC; Sm5.CALL]))
 
 (* TODO : complete this function *)
 and trans' : Sm5.command -> Sonata.command = function
@@ -38,6 +37,8 @@ and trans' : Sm5.command -> Sonata.command = function
     (match cmds with
     | [] -> [Sonata.CALL] (* 함수로 안 만들어도 됨 걍 콜 해 *)
     | _ -> [
+      Sonata.PUSH (Sonata.Fn ("!fu@k", [Sonata.UNBIND; Sonata.POP] @ trans' cmds)); (* 내 뒷 일 *)
+      Sonata.BIND "@@@fuxk@@@";
       (* l :: v :: f :: stack, { ... env } *)
       Sonata.BIND "!loc-loc";
       (* v :: f :: stack, { ... env, !loc: l } *)
@@ -46,7 +47,7 @@ and trans' : Sm5.command -> Sonata.command = function
       Sonata.BIND "!func-func";
       (* stack, { ... env, !loc: l, !val: new-l, !func: f }  *)
       (* 3개 저장 *)
-      Sonata.PUSH (Sonata.Fn ("!fu@k", trans' cmds)); (* 내 뒷 일 *)
+      Sonata.PUSH (Sonata.Id "@@@fuxk@@@");
       (* left :: stack, { ... env, !loc: l, !val: new-l, !func: f }  *)
       Sonata.PUSH (Sonata.Id "!func-func"); Sonata.UNBIND; Sonata.POP;
       (* f :: left :: stack, { ... env, !loc: l, !val: new-l }  *)
@@ -54,6 +55,7 @@ and trans' : Sm5.command -> Sonata.command = function
       (* v :: f :: left :: stack, { ... env, !loc: l }  *)
       Sonata.PUSH (Sonata.Id "!loc-loc"); Sonata.UNBIND; Sonata.POP;
       (* l :: v :: f :: left :: stack, { ... env }  *)
+      Sonata.UNBIND; Sonata.POP;
       (* 3개 복구 *)
       Sonata.CALL
     ]
