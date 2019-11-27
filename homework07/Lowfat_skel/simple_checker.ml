@@ -8,13 +8,13 @@ open Pp
 
 type var = string
 
-let count = ref 0 
+let count = ref 0
 
-let new_var () = 
+let new_var () =
   let _ = count := !count +1 in
   "x_" ^ (string_of_int !count)
 
-type typ = 
+type typ =
   | TInt
   | TBool
   | TString
@@ -133,7 +133,7 @@ let rec list_of_formula formula rr = match formula with
     let (small, big) = if length_of_typ a < length_of_typ b then
       (a, b) else (b, a) in
     EqualFormula (small, big)) :: rr
- 
+
 let rec unify_all u s = match u with
   | [] -> s
   | EqualFormula (a, b) :: left -> if a = b then unify_all left s
