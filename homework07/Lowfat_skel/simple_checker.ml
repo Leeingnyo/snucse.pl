@@ -134,23 +134,53 @@ let rec list_of_formula formula rr = match formula with
       (a, b) else (b, a) in
     EqualFormula (small, big)) :: rr
 
-let rec unify_all u s = match u with
-  | [] -> s
-  | EqualFormula (a, b) :: left -> if a = b then unify_all left s
+let rec is_subtype var t = match t with
+  | TInt | TBool | TString | TVar _ -> false
+  | TLoc a -> if (a = var) then true else is_subtype var a
+  | TFun (a, b) | TPair (a, b) -> if (a = var || b = var) then true else is_subtype var a || is_subtype var b
+
+let rec substitute_typ (t, v) typ =
+  let change a = if (a = t) then v else substitute_typ (t, v) a in
+  match typ with
+  | TInt | TBool | TString | TVar _ -> typ
+  | TLoc a -> TLoc (change a)
+  | TFun (a, b) -> TFun (change a, change b)
+  | TPair (a, b) -> TPair (change a, change b)
+  
+let rec substitute (t, v) equals = match equals with
+  | [] -> []
+  | EqualFormula (a, b) :: left ->
+    EqualFormula (substitute_typ (t, v) a, substitute_typ (t, v) b) :: substitute (t, v) left
+
+(* u는 식들 모음, s는 계산된 타입 변수들 결과 모음 *)
+let rec unify u s = match u with
+  | [] -> s (* 끝났으면 끝~ *)
+  | EqualFormula (a, b) :: left -> if a = b then unify left s (* a, b가 같으면 아무것도 안 하고 넘어갑니다 *)
     else (match (a, b) with
-    | (TFun (a1, a2), TFun (b1, b2)) -> unify_all (EqualFormula (a1, b1) :: EqualFormula (a2, b2) :: left) s
-    | (TVar a, b) | (b, TVar a) -> unify_all left ((a, b) :: s) (* TODO substitution *)
+    | (TVar a, b) | (b, TVar a) -> (* 어느 한 쪽이 Variable 일 때 *)
+      if (is_subtype (TVar a) b) then raise (M.TypeError "circular def") (* 서브 타입이면 에러 *)
+      else unify (substitute (TVar a, b) left) ((TVar a, b) :: s) (* 이 변수는 저장하고 다른 식에서 이 변수를 쓰고 있으면 바꿔줍니다 *)
+    | (TPair (a1, a2), TPair (b1, b2)) (* 페어 같은 짝짝이면 짝짝끼리 해줍니다 *)
+    | (TFun (a1, a2), TFun (b1, b2)) -> unify (EqualFormula (a1, b1) :: EqualFormula (a2, b2) :: left) s
     | _ -> raise (M.TypeError "anything else fail")
     )
+
+(* s에서 t를 뒤지는 함수입니다 *)
+let rec calculate t s =
+  (* vv에 다른 타입 변수가 있는 경우 대체해줘야 합니다 *)
+  let rec trim vv = match vv with
+    | TInt | TBool | TString -> vv
+    | TVar _ -> calculate vv s
+    | TLoc l -> TLoc (trim l)
+    | TPair (a1, a2) -> TPair (trim a1, trim a2)
+    | TFun (a1, a2) -> TFun (trim a1, trim a2)
+  in
+  try trim ((fun (tt, vv) -> vv) (List.find (fun (tt, vv) -> t = tt) s)) with Not_found -> raise (M.TypeError ("I cant find " ^ (string_of_typ t) ^ " in S"))
 
 (* TODO : Implement this function *)
 let check : M.exp -> M.types = fun exp ->
   let tau = "tau" in
   let formula = v ([], exp, TVar tau) in
   let equals = list_of_formula formula [] in
-  let _ = print_endline (string_of_formula formula) in
-  (*
-  let hello = unify_all equals [] in
-  (fun (a, b) -> translate_to_m_types b) (List.find (fun (a, b) -> a = "tau") hello)
-  *)
-  raise (M.TypeError "Type Checker Unimplemented")
+  let s = unify equals [] in
+  translate_to_m_types (calculate (TVar tau) s)
