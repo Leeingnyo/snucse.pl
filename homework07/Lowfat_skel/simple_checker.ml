@@ -127,6 +127,13 @@ let rec v (gamma, e, t) = (match e with
 
 type equal_formula = EqualFormula of typ * typ
 
+let string_of_equal_formula equal =
+  match equal with
+  | EqualFormula (a, b) -> string_of_typ a ^ " = " ^ string_of_typ b
+
+let string_of_equal_formula_list equals =
+  List.fold_left (fun str -> fun equal -> str ^ (if (str = "") then "" else " and ") ^ string_of_equal_formula equal) "" equals
+
 let rec list_of_formula formula rr = match formula with
   | And (f1, f2) -> list_of_formula f1 [] @ list_of_formula f2 [] @ rr
   | Equal (a, b) -> (
@@ -142,12 +149,14 @@ let rec is_subtype var t = match t with
 let rec substitute_typ (t, v) typ =
   let change a = if (a = t) then v else substitute_typ (t, v) a in
   match typ with
-  | TInt | TBool | TString | TVar _ -> typ
+  | TInt | TBool | TString -> typ
+  | TVar _ -> if (typ = t) then v else typ
   | TLoc a -> TLoc (change a)
   | TFun (a, b) -> TFun (change a, change b)
   | TPair (a, b) -> TPair (change a, change b)
   
-let rec substitute (t, v) equals = match equals with
+let rec substitute (t, v) equals =
+  match equals with
   | [] -> []
   | EqualFormula (a, b) :: left ->
     EqualFormula (substitute_typ (t, v) a, substitute_typ (t, v) b) :: substitute (t, v) left
@@ -155,7 +164,8 @@ let rec substitute (t, v) equals = match equals with
 (* u는 식들 모음, s는 계산된 타입 변수들 결과 모음 *)
 let rec unify u s = match u with
   | [] -> s (* 끝났으면 끝~ *)
-  | EqualFormula (a, b) :: left -> if a = b then unify left s (* a, b가 같으면 아무것도 안 하고 넘어갑니다 *)
+  | EqualFormula (a, b) :: left ->
+    if a = b then unify left s (* a, b가 같으면 아무것도 안 하고 넘어갑니다 *)
     else (match (a, b) with
     | (TVar a, b) | (b, TVar a) -> (* 어느 한 쪽이 Variable 일 때 *)
       if (is_subtype (TVar a) b) then raise (M.TypeError "circular def") (* 서브 타입이면 에러 *)
