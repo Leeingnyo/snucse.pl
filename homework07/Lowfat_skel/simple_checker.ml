@@ -38,12 +38,25 @@ let rec v (gamma, e, t) = (match e with
     | M.N _ -> Equal (TInt, t)
     | M.B _ -> Equal (TBool, t)
     )
-  | M.VAR id -> Equal (TVar id, t) (* id 인 걸 gamma에서 찾기 *)
-  | M.FN (par, body) -> failwith "Unimplemented FN"
-  | M.APP (fn, arg) -> failwith "Unimplemented APP"
+  | M.VAR id ->
+      let (x, x_t) =
+        (try (List.find (fun (x, x_t) -> x = id) gamma) with
+        | Not_found -> raise (M.TypeError ("unboud " ^ id))
+        )
+      in
+      Equal (t, x_t)
+  | M.FN (x, e) ->
+    let par_t = new_var () in
+    let body_t = new_var () in
+    And (Equal (t, TFun (TVar par_t, TVar body_t)), v ((x, TVar par_t) :: gamma, e, TVar body_t))
+  | M.APP (fn, arg) ->
+    let a = new_var () in
+    And (v (gamma, fn, TFun (TVar a, t)), v (gamma, arg, TVar a))
   | M.LET (dec, next) -> (match dec with
     | M.REC (f, par, body) -> failwith "Unimplemented LET REC"
-    | M.VAL (x, e) -> failwith "Unimplemented LET VAL"
+    | M.VAL (x, e) ->
+      let a = new_var () in
+      And (v ((x, TVar a) :: gamma, next, t), v (gamma, e, TVar a))
     )
   | M.IF (condition, true_body, false_body) ->
     And (v (gamma, condition, TBool), And (v (gamma, true_body, t), v (gamma, false_body, t)))
