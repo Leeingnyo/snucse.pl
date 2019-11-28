@@ -23,6 +23,7 @@ type typ =
   | TFun of typ * typ
   | TVar of var
   (* Modify, or add more if needed *)
+  | TTypeList of typ list
 
 let rec translate_to_m_types t = match t with
   | TInt -> M.TyInt
@@ -32,6 +33,7 @@ let rec translate_to_m_types t = match t with
   | TPair (f, s) -> M.TyPair (translate_to_m_types f, translate_to_m_types s)
   | TLoc a -> M.TyLoc (translate_to_m_types a)
   | TFun (a, b) -> M.TyArrow (translate_to_m_types a, translate_to_m_types b)
+  | TTypeList typ_list -> raise (M.TypeError "no type list to translate")
 
 let rec string_of_typ t = match t with
   | TInt -> "int"
@@ -41,6 +43,7 @@ let rec string_of_typ t = match t with
   | TLoc l -> "loc(" ^ string_of_typ l ^ ")"
   | TFun (a, b) -> "fun (" ^ string_of_typ a ^ ") -> (" ^ string_of_typ b ^ ")"
   | TVar id -> "var[" ^ id ^ "]"
+  | TTypeList typ_list -> "list[" ^ String.concat ", " (List.map (fun x -> string_of_typ x) typ_list) ^ "]"
 
 type formula =
   | Equal of typ * typ
@@ -88,12 +91,16 @@ let rec v (gamma, e, t) = (match e with
     | M.SUB -> And (And (Equal (t, TInt), v (gamma, e1, TInt)), v (gamma, e2, TInt))
     | M.EQ ->
       let a = new_var () in
-      And (Equal (t, TBool), And (v (gamma, e1, TVar a), v (gamma, e2, TVar a)))
+      let b = new_var () in
+      let l = new_var () in
+      And (And (And (Equal (t, TBool), And (v (gamma, e1, TVar a), v (gamma, e2, TVar b))),
+        Equal (TVar a, TVar b)),
+        And (Equal (TTypeList [TLoc (TVar l); TInt; TString; TBool], TVar a), Equal (TTypeList [TLoc (TVar l); TInt; TString; TBool], TVar b)))
     | M.AND -> And (And (Equal (t, TBool), v (gamma, e1, TBool)), v (gamma, e2, TBool))
     | M.OR -> And (And (Equal (t, TBool), v (gamma, e1, TBool)), v (gamma, e2, TBool))
     )
   | M.READ -> Equal (t, TInt)
-  | M.WRITE e -> v (gamma, e, t)
+  | M.WRITE e -> And (v (gamma, e, t), Equal (t, TTypeList [TInt; TBool; TString]))
   | M.MALLOC e ->
     let a = new_var () in
     And (v (gamma, e, TVar a), Equal (t, TLoc (TVar a)))
@@ -136,6 +143,7 @@ let rec is_subtype var t = match t with
   | TInt | TBool | TString | TVar _ -> false
   | TLoc a -> if (a = var) then true else is_subtype var a
   | TFun (a, b) | TPair (a, b) -> if (a = var || b = var) then true else is_subtype var a || is_subtype var b
+  | TTypeList typ_list -> List.fold_left (fun r -> fun e -> r || e) false (List.map (fun tt -> tt = t) typ_list)
 
 let rec substitute_typ (t, v) typ =
   let change a = if (a = t) then v else substitute_typ (t, v) a in
@@ -145,7 +153,8 @@ let rec substitute_typ (t, v) typ =
   | TLoc a -> TLoc (change a)
   | TFun (a, b) -> TFun (change a, change b)
   | TPair (a, b) -> TPair (change a, change b)
-  
+  | TTypeList typ_list -> TTypeList (List.map (fun x -> change x) typ_list)
+
 let rec substitute (t, v) equals =
   match equals with
   | [] -> []
@@ -156,6 +165,8 @@ let rec substitute (t, v) equals =
 let rec unify u s = match u with
   | [] -> s (* 끝났으면 끝~ *)
   | EqualFormula (a, b) :: left ->
+    let is_loc = (fun x -> match x with | TLoc _ -> true | _ -> false) in
+    let getLoc l = (match l with TLoc a -> a | _ -> raise (M.TypeError "this is not a loc")) in
     if a = b then unify left s (* a, b가 같으면 아무것도 안 하고 넘어갑니다 *)
     else (match (a, b) with
     | (TVar a, b) | (b, TVar a) -> (* 어느 한 쪽이 Variable 일 때 *)
@@ -164,7 +175,25 @@ let rec unify u s = match u with
     | (TPair (a1, a2), TPair (b1, b2)) (* 페어 같은 짝짝이면 짝짝끼리 해줍니다 *)
     | (TFun (a1, a2), TFun (b1, b2)) -> unify (EqualFormula (a1, b1) :: EqualFormula (a2, b2) :: left) s
     | (TLoc a, TLoc b) -> unify (EqualFormula (a, b) :: left) s
-    | _ -> raise (M.TypeError "anything else fail")
+    | (TTypeList typ_list, TInt) | (TInt, TTypeList typ_list) ->
+      if List.mem TInt typ_list then unify left s else raise (M.TypeError "not matched")
+    | (TTypeList typ_list, TBool) | (TBool, TTypeList typ_list) ->
+      if List.mem TBool typ_list then unify left s else raise (M.TypeError "not matched")
+    | (TTypeList typ_list, TString) | (TString, TTypeList typ_list) ->
+      if List.mem TString typ_list then unify left s else raise (M.TypeError "not matched")
+    | (TTypeList typ_list, TLoc a) | (TLoc a, TTypeList typ_list) ->
+      (let l = (try List.find is_loc typ_list with Not_found -> raise (M.TypeError "not matched")) in
+      unify (EqualFormula (TLoc a, l) :: left) s)
+    | (TTypeList typ_list_a, TTypeList typ_list_b) ->
+      if List.length typ_list_a != List.length typ_list_b then raise (M.TypeError "anything else fail")
+      else
+      (try
+      let loca = List.find is_loc typ_list_a in
+      let locb = List.find is_loc typ_list_b in
+      unify (EqualFormula (getLoc loca, getLoc locb) :: left) s
+      with Not_found -> unify left s
+      )
+    | _ -> (*let _ = print_endline (string_of_typ a ^ " ||||| " ^ string_of_typ b) in*) raise (M.TypeError "anything else fail")
     )
 
 (* s에서 t를 뒤지는 함수입니다 *)
@@ -176,14 +205,19 @@ let rec calculate t s =
     | TLoc l -> TLoc (trim l)
     | TPair (a1, a2) -> TPair (trim a1, trim a2)
     | TFun (a1, a2) -> TFun (trim a1, trim a2)
+    | TTypeList typ_list -> failwith "Unimplemented"
   in
   try trim ((fun (tt, vv) -> vv) (List.find (fun (tt, vv) -> t = tt) s)) with Not_found -> raise (M.TypeError ("I cant find " ^ (string_of_typ t) ^ " in S"))
 
 (* TODO : Implement this function *)
 let check : M.exp -> M.types = fun exp ->
-  let tau = "tau" in
+  let tau = "@tau" in
   let formula = v ([], exp, TVar tau) in
   (* let _ = print_endline (string_of_formula formula) in *)
   let equals = list_of_formula formula [] in
-  let s = unify equals [] in
+  let s = unify (List.sort (fun a -> fun b -> match a with
+    | EqualFormula (TTypeList _, _)
+    | EqualFormula (_, TTypeList _) -> 1
+    | _ -> -1
+    ) equals) [] in
   translate_to_m_types (calculate (TVar tau) s)
