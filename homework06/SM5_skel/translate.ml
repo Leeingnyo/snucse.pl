@@ -40,12 +40,14 @@ module Translator = struct
       | K.LETV (x, e1, e2) ->
         trans e1 @ [Sm5.MALLOC; Sm5.BIND x; Sm5.PUSH (Sm5.Id x); Sm5.STORE] @
         trans' e2 @ [Sm5.UNBIND; Sm5.POP]
-      | K.LETF (f, x, e1, e2) -> trans k
+      | K.LETF (f, x, e1, e2) ->
+        [Sm5.PUSH (Sm5.Fn (x, [Sm5.BIND f] @ trans' e1 @ [Sm5.UNBIND; Sm5.POP])); Sm5.BIND f] @
+        trans' e2 @ [Sm5.UNBIND; Sm5.POP]
       | _ -> trans k
       )
       in
       [Sm5.PUSH (Sm5.Fn (x, [Sm5.BIND f] @ trans' e1 @ [Sm5.UNBIND; Sm5.POP])); Sm5.BIND f] @
-      trans' e2 @ [Sm5.UNBIND; Sm5.POP]
+      trans e2 @ [Sm5.UNBIND; Sm5.POP]
     )
     | K.ASSIGN (x, e) -> trans e @ [Sm5.MALLOC; Sm5.BIND "-assign"; Sm5.PUSH (Sm5.Id "-assign"); Sm5.STORE; Sm5.PUSH (Sm5.Id "-assign"); Sm5.LOAD; Sm5.PUSH (Sm5.Id "-assign"); Sm5.LOAD; Sm5.PUSH (Sm5.Id x); Sm5.STORE; Sm5.UNBIND; Sm5.POP]
     | K.IF (e_cond, e_true, e_false) ->
