@@ -18,7 +18,24 @@ let rec removeExnIter : xexp -> xexp = fun e ->
   | Xexp.Num n -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Num n)))
   | Xexp.Var id -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Var id)))
   | Xexp.Fn (f, e) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Fn (f, removeExnIter e))))
-  | Xexp.App (fn, arg) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
+  | Xexp.App (fn, arg) ->
+    (* \K,H. T(e1) <\f. T(e2) <\v. f v <K,H>, H>, H> *)
+    let f = new_name () in
+    let v = new_name () in
+    Xexp.Fn (k, Xexp.Fn (h, (* \K,H. *)
+      Xexp.App (Xexp.App (removeExnIter fn, (* T(e1) < *)
+        Xexp.Fn (f, (* \f. *)
+          Xexp.App (Xexp.App (removeExnIter arg, (* T(e2) < *)
+            Xexp.Fn (v, (* \v. *)
+              Xexp.App (Xexp.App (Xexp.App (Xexp.Var f, Xexp.Var v), Xexp.Var k), Xexp.Var h) (* f v <K,H> *)
+            )
+          ), Xexp.Var h) (* , H> *)
+        )
+      ), Xexp.Var h) (* , H> *)
+    ))
+    (*
+    Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
+    *)
   | Xexp.If (cond, t, f) ->
     let c = new_name () in
     let s = new_name () in
