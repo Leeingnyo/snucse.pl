@@ -58,7 +58,20 @@ let rec removeExnIter : xexp -> xexp = fun e ->
     Xexp.Fn (k, Xexp.Fn (h,
       Xexp.App (Xexp.App (removeExnIter expn, Xexp.Var h), Xexp.Var h)
     ))
-  | Xexp.Handle (t, error_code, error) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
+  | Xexp.Handle (t, error_code, error) ->
+    let v = new_name () in
+    Xexp.Fn (k, Xexp.Fn (h,
+      Xexp.App (Xexp.App (removeExnIter t, Xexp.Var k),
+        Xexp.Fn (v,
+          Xexp.If (Xexp.Equal (Xexp.Var v, Xexp.Num error_code),
+            (* 에러 코드가 같으면 여기서 처리 *)
+            App (App (removeExnIter error, Var k), Var h),
+            (* 에러 코드가 다르면 다음에 처리 *)
+            Xexp.App (Xexp.Var h, Xexp.Var v)
+          )
+        )
+      )
+    ))
 
 (* TODO : Implement this function *)
 let removeExn : xexp -> xexp = fun e ->
