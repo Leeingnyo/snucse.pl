@@ -11,13 +11,13 @@ let new_name () =
   let _ = count := !count + 1 in
   "x_" ^ (string_of_int !count)
 
-let removeExnIter : xexp -> xexp = fun e ->
+let rec removeExnIter : xexp -> xexp = fun e ->
   let k = new_name () in
   let h = new_name () in
   match e with
   | Xexp.Num n -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Num n)))
   | Xexp.Var id -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Var id)))
-  | Xexp.Fn (f, e) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
+  | Xexp.Fn (f, e) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Fn (f, removeExnIter e))))
   | Xexp.App (fn, arg) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
   | Xexp.If (cond, t, f) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
   | Xexp.Equal (left, right) ->  Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
