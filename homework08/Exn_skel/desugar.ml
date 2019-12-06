@@ -54,7 +54,10 @@ let rec removeExnIter : xexp -> xexp = fun e ->
         )
       ), Xexp.Var h)
     ))
-  | Xexp.Raise expn -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
+  | Xexp.Raise expn ->
+    Xexp.Fn (k, Xexp.Fn (h,
+      Xexp.App (Xexp.App (removeExnIter expn, Xexp.Var h), Xexp.Var h)
+    ))
   | Xexp.Handle (t, error_code, error) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
 
 (* TODO : Implement this function *)
