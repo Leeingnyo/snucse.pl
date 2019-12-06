@@ -20,7 +20,20 @@ let rec removeExnIter : xexp -> xexp = fun e ->
   | Xexp.Fn (f, e) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, Xexp.Fn (f, removeExnIter e))))
   | Xexp.App (fn, arg) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
   | Xexp.If (cond, t, f) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
-  | Xexp.Equal (left, right) ->  Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
+  | Xexp.Equal (left, right) ->
+    let l = new_name () in
+    let r = new_name () in
+    Xexp.Fn (k, Xexp.Fn (h,
+      Xexp.App (Xexp.App (removeExnIter left,
+        Xexp.Fn (l,
+          Xexp.App (Xexp.App (removeExnIter right,
+            Xexp.Fn (r,
+              Xexp.App (Xexp.Var k, Xexp.Equal (Xexp.Var l, Xexp.Var r))
+            )
+          ), Xexp.Var h)
+        )
+      ), Xexp.Var h)
+    ))
   | Xexp.Raise expn -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
   | Xexp.Handle (t, error_code, error) -> Xexp.Fn (k, Xexp.Fn (h, Xexp.App (Xexp.Var k, e)))
 
