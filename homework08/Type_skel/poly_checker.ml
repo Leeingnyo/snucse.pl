@@ -255,6 +255,27 @@ let rec m (gamma, e, t): subst =
   | M.READ -> unify (t, TInt)
   | M.WRITE e ->
     m (gamma, e, t) (* TODO printable *)
+  | M.MALLOC e ->
+    let a = new_var () in
+    let s1 = unify (t, TLoc (TVar a)) in
+    let s2 = m (subst_env s1 gamma, e, TVar a) in
+    s2 @@ s1
+  | M.ASSIGN (dest, expr) ->
+    let s1 = m (gamma, expr, t) in
+    let s2 = m (subst_env s1 gamma, dest, TLoc (s1 t)) in
+    s2 @@ s1
+  | M.BANG loc ->
+    let a = new_var () in
+    let s1 = m (gamma, loc, TLoc (TVar a)) in
+    let s2 = unify (t, s1 (TVar a)) in
+    s2 @@ s1
+  | M.SEQ (e1, e2) ->
+    let a1 = new_var () in
+    let a2 = new_var () in
+    let s1 = unify (t, TVar a2) in
+    let s2 = m (subst_env s1 gamma, e1, s1 (TVar a1)) in
+    let s3 = m (subst_env s2 (subst_env s1 gamma), e2, s2 (s1 (TVar a2))) in
+    s3 @@ s2 @@ s1
 
 let check : M.exp -> M.typ = fun e ->
   let tau = "x_tau" in
