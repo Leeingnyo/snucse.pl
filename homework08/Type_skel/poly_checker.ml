@@ -276,6 +276,21 @@ let rec m (gamma, e, t): subst =
     let s2 = m (subst_env s1 gamma, e1, s1 (TVar a1)) in
     let s3 = m (subst_env s2 (subst_env s1 gamma), e2, s2 (s1 (TVar a2))) in
     s3 @@ s2 @@ s1
+  | M.PAIR (fst, snd) ->
+    let a1 = new_var () in
+    let a2 = new_var () in
+    let s1 = unify (t, TPair (TVar a1, TVar a2)) in
+    let gamma' = subst_env s1 gamma in
+    let s2 = m (gamma', fst, s1 (TVar a1)) in
+    let gamma'' = subst_env s2 gamma' in
+    let s3 = m (gamma'', snd, s2 (s1 (TVar a2))) in
+    s3 @@ s2 @@ s1
+  | M.FST pair ->
+    let a = new_var () in
+    m (gamma, pair, TPair (t, TVar a))
+  | M.SND pair ->
+    let a = new_var () in
+    m (gamma, pair, TPair (TVar a, t))
 
 let check : M.exp -> M.typ = fun e ->
   let tau = "x_tau" in
