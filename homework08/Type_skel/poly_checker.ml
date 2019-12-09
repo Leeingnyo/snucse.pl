@@ -22,9 +22,8 @@ type typ =
   | TFun of typ * typ
   | TVar of var
   (* Modify, or add more if needed *)
-  (*
-  | TTypeList of typ list
-  *)
+  | TVarComparable of var (* TInt TBool TString TLoc*)
+  | TVarPrintable of var (* TInt TBool TString *)
 
 let rec string_of_typ t = match t with
   | TInt -> "int"
@@ -34,21 +33,18 @@ let rec string_of_typ t = match t with
   | TLoc l -> "loc(" ^ string_of_typ l ^ ")"
   | TFun (a, b) -> "fun (" ^ string_of_typ a ^ ") -> (" ^ string_of_typ b ^ ")"
   | TVar id -> "var[" ^ id ^ "]"
-  (*
-  | TTypeList typ_list -> "list[" ^ String.concat ", " (List.map (fun x -> string_of_typ x) typ_list) ^ "]"
-  *)
+  | TVarComparable id -> "var_c[" ^ id ^ "]"
+  | TVarPrintable id -> "var_p[" ^ id ^ "]"
 
 let rec translate_to_m_types t = match t with
   | TInt -> M.TyInt
   | TBool -> M.TyBool
   | TString -> M.TyString
+  | TVarComparable id | TVarPrintable id
   | TVar id -> raise (M.TypeError "no var to translate")
   | TPair (f, s) -> M.TyPair (translate_to_m_types f, translate_to_m_types s)
   | TLoc a -> M.TyLoc (translate_to_m_types a)
   | TFun (a, b) -> raise (M.TypeError "no type list to translate")
-  (*
-  | TTypeList typ_list -> raise (M.TypeError "no type list to translate")
-  *)
 
 type typ_scheme =
   | SimpleTyp of typ 
@@ -72,7 +68,7 @@ let rec ftv_of_typ : typ -> var list = function
   | TPair (t1, t2) -> union_ftv (ftv_of_typ t1) (ftv_of_typ t2)
   | TLoc t -> ftv_of_typ t
   | TFun (t1, t2) ->  union_ftv (ftv_of_typ t1) (ftv_of_typ t2)
-  | TVar v -> [v]
+  | TVarComparable v | TVarPrintable v | TVar v -> [v]
 
 let ftv_of_scheme : typ_scheme -> var list = function
   | SimpleTyp t -> ftv_of_typ t
@@ -102,7 +98,7 @@ let empty_subst : subst = fun t -> t
 let make_subst : var -> typ -> subst = fun x t ->
   let rec subs t' = 
     match t' with
-    | TVar x' -> if (x = x') then t else t'
+    | TVarComparable x' | TVarPrintable x' | TVar x' -> if (x = x') then t else t'
     | TPair (t1, t2) -> TPair (subs t1, subs t2)
     | TLoc t'' -> TLoc (subs t'')
     | TFun (t1, t2) -> TFun (subs t1, subs t2)
@@ -131,9 +127,8 @@ let rec is_subtype var t = match t with
   | TInt | TBool | TString | TVar _ -> false
   | TLoc a -> if (a = var) then true else is_subtype var a
   | TFun (a, b) | TPair (a, b) -> if (a = var || b = var) then true else is_subtype var a || is_subtype var b
-  (*
-  | TTypeList typ_list -> List.fold_left (fun r -> fun e -> r || e) false (List.map (fun tt -> tt = t) typ_list)
-  *)
+  | TVarComparable _ -> List.fold_left (fun r -> fun e -> r || e) false (List.map (fun tt -> tt = t) [TInt; TBool; TString(*; TLoc*)])
+  | TVarPrintable _ -> List.fold_left (fun r -> fun e -> r || e) false (List.map (fun tt -> tt = t) [TInt; TBool; TString])
 
 let rec unify (tv1, tv2): subst =
   if tv1 = tv2 then empty_subst
@@ -148,7 +143,16 @@ let rec unify (tv1, tv2): subst =
     let s2 = unify (s1 a2, s1 b2) in
     s2 @@ s1
   | (TLoc a, TLoc b) -> unify (a, b)
-  (* not yet type *)
+  | (TVarComparable a, b) | (b, TVarComparable a) ->
+    (match b with 
+    | TVarComparable _ | TInt | TString | TBool | TLoc _ | TVarPrintable _ -> make_subst a b
+    | _ -> raise (M.TypeError "Fail to unify : otherwise")
+    )
+  | (TVarPrintable a, b) | (b, TVarPrintable a) ->
+    (match b with 
+    | TInt | TString | TBool  | TVarPrintable _ -> make_subst a b
+    | _ -> raise (M.TypeError "Fail to unify : otherwise")
+    )
   | _ -> raise (M.TypeError "Fail to unify : otherwise")
 
 let rec expensive : M.exp -> bool = fun e -> match e with
@@ -248,13 +252,16 @@ let rec m (gamma, e, t): subst =
     | M.EQ ->
       let a = new_var () in
       let s1 = unify (t, TBool) in
-      let s2 = m (subst_env s1 gamma, e1, TVar a) in
-      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TVar a) in (* TODO comparable *)
+      let s2 = m (subst_env s1 gamma, e1, TVarComparable a) in
+      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TVarComparable a) in (* TODO comparable *)
       s3 @@ s2 @@ s1
     )
   | M.READ -> unify (t, TInt)
   | M.WRITE e ->
-    m (gamma, e, t) (* TODO printable *)
+    let a = new_var () in
+    let s1 = unify (t, TVarPrintable a) in
+    let s2 = m (subst_env s1 gamma, e, s1 t) in
+    s2 @@ s1
   | M.MALLOC e ->
     let a = new_var () in
     let s1 = unify (t, TLoc (TVar a)) in
