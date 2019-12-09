@@ -224,6 +224,37 @@ let rec m (gamma, e, t): subst =
       let s2 = m ((x, x_t) :: gamma', next, s1 t) in
       s2 @@ s1
     )
+  | M.IF (condition, true_body, false_body) ->
+    let s1 = m (gamma, condition, TBool) in
+    let gamma' = subst_env s1 gamma in
+    let t' = s1 t in
+    let s2 = m (gamma', true_body, t') in
+    let gamma'' = subst_env s2 gamma' in
+    let t'' = s2 t' in
+    let s3 = m (gamma'', false_body, t'') in
+    s3 @@ s2 @@ s1
+  | M.BOP (op, e1, e2) ->
+    (match op with
+    | M.ADD | M.SUB ->
+      let s1 = unify (t, TInt) in
+      let s2 = m (subst_env s1 gamma, e1, TInt) in
+      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TInt) in
+      s3 @@ s2 @@ s1
+    | M.AND | M.OR ->
+      let s1 = unify (t, TBool) in
+      let s2 = m (subst_env s1 gamma, e1, TBool) in
+      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TBool) in
+      s3 @@ s2 @@ s1
+    | M.EQ ->
+      let a = new_var () in
+      let s1 = unify (t, TBool) in
+      let s2 = m (subst_env s1 gamma, e1, TVar a) in
+      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TVar a) in (* TODO comparable *)
+      s3 @@ s2 @@ s1
+    )
+  | M.READ -> unify (t, TInt)
+  | M.WRITE e ->
+    m (gamma, e, t) (* TODO printable *)
 
 let check : M.exp -> M.typ = fun e ->
   let tau = "x_tau" in
