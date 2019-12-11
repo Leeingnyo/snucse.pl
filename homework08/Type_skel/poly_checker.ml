@@ -98,7 +98,9 @@ let empty_subst : subst = fun t -> t
 let make_subst : var -> typ -> subst = fun x t ->
   let rec subs t' = 
     match t' with
-    | TVarComparable x' | TVarPrintable x' | TVar x' -> if (x = x') then t else t'
+    | TVarComparable x'
+    | TVarPrintable x'
+    | TVar x' -> if (x = x') then t else t'
     | TPair (t1, t2) -> TPair (subs t1, subs t2)
     | TLoc t'' -> TLoc (subs t'')
     | TFun (t1, t2) -> TFun (subs t1, subs t2)
@@ -115,7 +117,20 @@ let subst_scheme : subst -> typ_scheme -> typ_scheme = fun subs tyscm ->
     let betas = List.map (fun _ -> new_var()) alphas in
     let s' =
       List.fold_left2
-        (fun acc_subst alpha beta -> make_subst alpha (TVar beta) @@ acc_subst)
+        (fun acc_subst alpha beta ->
+          let rec subs = fun t ->
+            (match t with
+            | TVarComparable x' -> if (alpha = x') then TVarComparable beta else t
+            | TVarPrintable x' -> if (alpha = x') then TVarPrintable beta else t
+            | TVar x' -> if (alpha = x') then TVar beta else t
+            | TPair (t1, t2) -> TPair (subs t1, subs t2)
+            | TLoc t'' -> TLoc (subs t'')
+            | TFun (t1, t2) -> TFun (subs t1, subs t2)
+            | TInt | TBool | TString -> t
+            )
+          in
+          subs @@ acc_subst
+        )
         empty_subst alphas betas
     in
     GenTyp (betas, subs (s' t))
@@ -145,7 +160,7 @@ let rec unify (tv1, tv2): subst =
   | (TLoc a, TLoc b) -> unify (a, b)
   | (TVarComparable a, b) | (b, TVarComparable a) ->
     (match b with 
-    | TVarComparable _ | TInt | TString | TBool | TLoc _ | TVarPrintable _ -> make_subst a b
+    | TInt | TString | TBool | TLoc _ | TVarPrintable _ | TVarComparable _ -> make_subst a b
     | _ -> raise (M.TypeError "Fail to unify : otherwise")
     )
   | (TVarPrintable a, b) | (b, TVarPrintable a) ->
@@ -189,8 +204,18 @@ let rec m (gamma, e, t): subst =
         (List.fold_left (
           fun subst -> fun alpha ->
             let beta = new_var () in
-            (* check *)
-            make_subst alpha (TVar beta) @@ subst
+            let rec subs = fun t ->
+              (match t with
+              | TVarComparable x' -> if (alpha = x') then TVarComparable beta else t
+              | TVarPrintable x' -> if (alpha = x') then TVarPrintable beta else t
+              | TVar x' -> if (alpha = x') then TVar beta else t
+              | TPair (t1, t2) -> TPair (subs t1, subs t2)
+              | TLoc t'' -> TLoc (subs t'')
+              | TFun (t1, t2) -> TFun (subs t1, subs t2)
+              | TInt | TBool | TString -> t
+              )
+            in
+            subs @@ subst
           )
         empty_subst
         alphas
@@ -253,7 +278,7 @@ let rec m (gamma, e, t): subst =
       let a = new_var () in
       let s1 = unify (t, TBool) in
       let s2 = m (subst_env s1 gamma, e1, TVarComparable a) in
-      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TVarComparable a) in (* TODO comparable *)
+      let s3 = m (subst_env s2 (subst_env s1 gamma), e2, TVarComparable a) in
       s3 @@ s2 @@ s1
     )
   | M.READ -> unify (t, TInt)
