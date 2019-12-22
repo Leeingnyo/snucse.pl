@@ -371,7 +371,10 @@ struct
     | (V (L l) :: V v :: P (x, c', e') :: s, m, e, CALL :: c, k, t) ->
       (s, store l v m, (x, Loc l) :: e', c', (c, e) :: k, t)
     | (s, m, e, [], (c, e') :: k, t) -> (s, m, e', c, k, t)
-    | (s, m, e, [], [], (c1, c2, s', e', k) :: t) -> (s, m, e, c2, k, t)
+
+    | (s, m, e, [], [], (c1, c2, s', e', k) :: t) ->
+      (s, m, e, c2, k, t)
+
     | (s, m, e, GET :: c, k, t) -> (V (Z (read_int())) :: s, m, e, c, k, t)
     | (V (Z z) :: s, m, e, PUT :: c, k, t) -> 
       let _ = print_endline (string_of_int z) in
@@ -400,8 +403,12 @@ struct
     | (V (Z z2) :: V (Z z1) :: s, m, e, LESS :: c, k, t) -> 
       (V (B (z1 < z2)) :: s, m, e, c, k, t)
     | (V (B b) :: s, m, e, NOT :: c, k, t) -> (V (B (not b)) :: s, m, e, c, k, t)
-    | (s, m, e, TRYSTART (c1, c2) :: c, k, t) -> (s, m, e, c1, [], (c2, c, s, e, k) :: t)
-    | (s, m, e, RAISE :: _, k, (c', c, s', e', k') :: t) -> (s', m, e', c' @ c, k', t)
+
+    | (s, m, e, TRYSTART (c1, c2) :: c, k, t) ->
+      (s, m, e, c1, [], (c2, c, s, e, k) :: t)
+    | (s, m, e, RAISE :: _, k, (c', c, s', e', k') :: t) ->
+      (s', m, e', c' @ c, k', t)
+
     | s, m, e, c, k, t ->
       raise (Error "Invalid machine state")
 
