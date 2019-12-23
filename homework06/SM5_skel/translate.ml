@@ -28,12 +28,10 @@ module Translator = struct
       trans e2 @ [Sm5.UNBIND; Sm5.POP]
     | K.LETF (f, x, e1, e2) -> (
       let rec trans' : K.program -> Sm5.command = fun k -> (match k with
-      | K.CALLV (f', arg_exp) -> if f = f' then (* 끝재귀콜이네? *)
-        [Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id f)] @ trans arg_exp @ [Sm5.MALLOC; Sm5.TAILCALL]
-        else trans k
-      | K.CALLR (f', arg_var) -> if f = f' then (* 여기도 끝재귀 콜이네? *)
-        [Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id f); Sm5.PUSH (Sm5.Id arg_var); Sm5.LOAD; Sm5.PUSH (Sm5.Id arg_var); Sm5.TAILCALL]
-        else trans k
+      | K.CALLV (f', arg_exp) -> (* 끝콜 *)
+        [Sm5.PUSH (Sm5.Id f'); Sm5.PUSH (Sm5.Id f')] @ trans arg_exp @ [Sm5.MALLOC; Sm5.TAILCALL]
+      | K.CALLR (f', arg_var) -> (* 끝콜 *)
+        [Sm5.PUSH (Sm5.Id f'); Sm5.PUSH (Sm5.Id f'); Sm5.PUSH (Sm5.Id arg_var); Sm5.LOAD; Sm5.PUSH (Sm5.Id arg_var); Sm5.TAILCALL]
       | K.IF (e_cond, e_true, e_false) ->
         trans e_cond @ [Sm5.JTR (trans' e_true, trans' e_false)]
       | K.SEQ (e1, e2) -> trans e1 @ [Sm5.POP] @ trans' e2
